@@ -43,24 +43,24 @@ const HEAVY = {
 };
 const isYTUrl = s => /(?:youtube\.com|youtu\.be)/i.test((s || "").trim()) && (s || "").trim().split(/\s+/).length < 6;
 async function callAPI(prompt, tok) {
+  var apiKey = typeof localStorage !== "undefined" && localStorage.getItem("hcs-api-key") || "";
+  if (!apiKey || !apiKey.trim()) throw new Error("NO_KEY");
   try {
-    var useProxy = window.location.protocol === "https:";
-    var endpoint = useProxy ? "/.netlify/functions/claude" : API;
-    var headers = { "Content-Type": "application/json" };
-    var body = {
-      model: MDL,
-      max_tokens: tok || 4096,
-      system: "You are a church content strategist and pastoral writer. Return ONLY valid JSON. No markdown fences. No extra text.",
-      messages: [{ role: "user", content: prompt }]
-    };
-    if (!useProxy) {
-      var apiKey = typeof localStorage !== "undefined" && localStorage.getItem("hcs-api-key") || "";
-      if (!apiKey || !apiKey.trim()) throw new Error("NO_KEY");
-      headers["x-api-key"] = apiKey;
-      headers["anthropic-version"] = "2023-06-01";
-      headers["anthropic-dangerous-direct-browser-access"] = "true";
-    }
-    const r = await fetch(endpoint, { method: "POST", headers: headers, body: JSON.stringify(body) });
+    const r = await fetch(API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: MDL,
+        max_tokens: tok || 4096,
+        system: "You are a church content strategist and pastoral writer. Return ONLY valid JSON. No markdown fences. No extra text.",
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
     if (!r.ok) {
       var errBody = "";
       try { var eb = await r.json(); errBody = JSON.stringify(eb); } catch(e) {}
