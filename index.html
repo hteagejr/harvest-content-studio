@@ -3350,43 +3350,35 @@ function App() {
     }, 2000);
   }
   async function askQ() {
-    if (!qaIn.trim()) return;
-    var um = {
-      role: "user",
-      text: qaIn
-    };
-    setQaMsg(function (m) {
-      return m.concat([um]);
-    });
+    if (!qaIn.trim() || !coreData) return;
+    var um = { role: "user", text: qaIn };
+    setQaMsg(function(m) { return m.concat([um]); });
     setQaIn("");
     setQaLoad(true);
     try {
+      var history = qaMsg.concat([um]).map(function(m) {
+        return { role: m.role === "user" ? "user" : "assistant", content: m.text };
+      });
+      var apiKey = typeof localStorage !== "undefined" && localStorage.getItem("hcs-api-key") || "";
+      if (!apiKey) throw new Error("NO_KEY");
+      var sysPrompt = "You are a warm, pastoral church assistant. Answer questions about this sermon in 2-4 sentences. Be encouraging and grounded in scripture. Speaker: " + (addressName || "the speaker") + ". Sermon theme: " + (coreData.theme || "") + ". Summary: " + (coreData.summary || "") + ". Key points: " + ((coreData.keyPoints || []).join(", ")) + ".";
       var res = await fetch(API, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true"
         },
-        body: JSON.stringify({
-          model: MDL,
-          max_tokens: 500,
-          system: "You are a warm church assistant. Answer questions about this sermon in 2-4 sentences. Refer to the speaker as \"" + addressName + "\". Sermon: " + input,
-          messages: qaMsg.concat([um]).map(function (m) {
-            return {
-              role: m.role === "user" ? "user" : "assistant",
-              content: m.text
-            };
-          })
-        })
+        body: JSON.stringify({ model: MDL, max_tokens: 500, system: sysPrompt, messages: history })
       });
       var d = await res.json();
       var text = d.content && d.content[0] && d.content[0].text;
-      setQaMsg(function (m) {
-        return m.concat([{
-          role: "assistant",
-          text: text || "Keep seeking!"
-        }]);
-      });
-    } catch (e) {}
+      setQaMsg(function(m) { return m.concat([{ role: "assistant", text: text || "I'm not sure — keep seeking!" }]); });
+    } catch(e) {
+      console.error("Q&A error:", e);
+      setQaMsg(function(m) { return m.concat([{ role: "assistant", text: "Sorry, I couldn't process that. Please try again." }]); });
+    }
     setQaLoad(false);
   }
   function handlePhotos(ev) {
