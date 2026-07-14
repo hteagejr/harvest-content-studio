@@ -226,31 +226,8 @@ function P_YOUTUBE(txt, meta, dur, s) {
   return 'Generate a complete YouTube upload package for this sermon by ' + sp + ' at ' + church + '.' + durNote + ' Return ONLY valid JSON:\n{"titles":["SEO-optimized title with keyword","Question-format title that creates curiosity","Promise-format title"],"hook":"First 2 lines of description visible before Show More — must hook immediately (max 160 chars)","descriptionBody":"Full description body 500-800 words: expanded summary paragraph, What you will discover section with 3-5 bullet points using bullet character, about the speaker paragraph, about the church paragraph, subscribe and follow CTA lines, ' + youtube + '","chapters":[{"time":"0:00","title":"Introduction"},{"time":"EST","title":"Section title"}],"tags":["tag1","tag2","tag3","tag4","tag5","tag6","tag7","tag8","tag9","tag10","tag11","tag12","tag13","tag14","tag15"],"thumbnailConcepts":["Short punchy text concept 1 (under 6 words)","Concept 2","Concept 3"]}\nSERMON: ' + txt;
 }
 function P_HOOKS(txt, meta) {
-  var speaker = (meta && meta.speaker) || 'the speaker';
-  return 'You are a church social media strategist specializing in scroll-stopping content. Analyze this sermon by ' + speaker + ' and generate hooks that grab attention in the first 3 seconds. Return ONLY valid JSON with these exact keys:\n'
-  + '{"messageHooks":['
-  + '{"hook":"hook text","type":"curiosity","platform":"TikTok / Instagram Reels"},'
-  + '{"hook":"hook text","type":"problem","platform":"Facebook / Instagram"},'
-  + '{"hook":"hook text","type":"challenge","platform":"TikTok"},'
-  + '{"hook":"hook text","type":"promise","platform":"Instagram / Facebook"},'
-  + '{"hook":"hook text","type":"question","platform":"All platforms"}],'
-  + '"visualHooks":['
-  + '{"concept":"visual concept for first 3 seconds","howTo":"simple production note"},'
-  + '{"concept":"...","howTo":"..."},'
-  + '{"concept":"...","howTo":"..."},'
-  + '{"concept":"...","howTo":"..."},'
-  + '{"concept":"...","howTo":"..."}],'
-  + '"audioHooks":['
-  + '{"concept":"audio concept for first 3 seconds","howTo":"simple production note"},'
-  + '{"concept":"...","howTo":"..."},'
-  + '{"concept":"...","howTo":"..."},'
-  + '{"concept":"...","howTo":"..."},'
-  + '{"concept":"...","howTo":"..."}],'
-  + '"excerptSetups":['
-  + '{"title":"clip title","setup":"1-2 sentence context line explaining why someone should watch this clip"}'
-  + ']}'
-  + '\nIMPORTANT: Replace ALL placeholder text (...) with real content specific to this sermon. Make every hook compelling and sermon-specific.'
-  + '\n\nSERMON TRANSCRIPT:\n' + txt;
+  var sp = (meta && meta.speaker) ? meta.speaker : 'the speaker';
+  return 'You are a church social media strategist. Study this sermon by ' + sp + ' and generate scroll-stopping hooks for social media. Each hook must be specific to THIS sermon — no generic placeholders. Return ONLY this exact JSON structure with all values replaced by real sermon-specific content:\n{"messageHooks":[{"hook":"write a curiosity hook from this sermon","type":"curiosity","platform":"TikTok / Instagram Reels"},{"hook":"write a problem hook from this sermon","type":"problem","platform":"Facebook / Instagram"},{"hook":"write a challenge hook from this sermon","type":"challenge","platform":"TikTok"},{"hook":"write a promise hook from this sermon","type":"promise","platform":"Instagram / Facebook"},{"hook":"write a question hook from this sermon","type":"question","platform":"All platforms"}],"visualHooks":[{"concept":"visual idea 1","howTo":"production note 1"},{"concept":"visual idea 2","howTo":"production note 2"},{"concept":"visual idea 3","howTo":"production note 3"},{"concept":"visual idea 4","howTo":"production note 4"},{"concept":"visual idea 5","howTo":"production note 5"}],"audioHooks":[{"concept":"audio idea 1","howTo":"production note 1"},{"concept":"audio idea 2","howTo":"production note 2"},{"concept":"audio idea 3","howTo":"production note 3"},{"concept":"audio idea 4","howTo":"production note 4"},{"concept":"audio idea 5","howTo":"production note 5"}],"excerptSetups":[{"title":"clip title","setup":"1-2 sentence caption explaining why someone should watch this clip"}]}\nSERMON: ' + txt;
 }
 var R = {
   strategy: function (txt) {
@@ -2886,7 +2863,7 @@ function App() {
         }, 1500);
         return;
       } else {
-      console.error("Hooks failed:", e && e.message);
+      console.error("Hooks failed: JSON parse returned null or missing keys");
         setErrHooks(true);
       }
     } catch (e) {
