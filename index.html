@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Harvest Content Studio</title>
+  <title>Harvest Content Studio — Powered by Resound</title>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <style>
@@ -29,11 +29,11 @@ const _React = React,
   useEffect = _React.useEffect;
 const API = "https://api.anthropic.com/v1/messages",
   MDL = "claude-sonnet-4-6";
-const GOLD = "#FFAD00",
-  PURPLE = "#6B225B",
-  GOLD_L = "#FFF8E6",
-  PURPLE_L = "#F8F0F7",
-  PURPLE_D = "#4A1640";
+const GOLD = "#00B4D8",
+  PURPLE = "#0D1B2A",
+  GOLD_L = "#E8F8FC",
+  PURPLE_L = "#EBF8FC",
+  PURPLE_D = "#051018";
 const HEAVY = {
   fontFamily: "'Impact','Arial Black',sans-serif",
   fontWeight: 900,
@@ -226,7 +226,31 @@ function P_YOUTUBE(txt, meta, dur, s) {
   return 'Generate a complete YouTube upload package for this sermon by ' + sp + ' at ' + church + '.' + durNote + ' Return ONLY valid JSON:\n{"titles":["SEO-optimized title with keyword","Question-format title that creates curiosity","Promise-format title"],"hook":"First 2 lines of description visible before Show More — must hook immediately (max 160 chars)","descriptionBody":"Full description body 500-800 words: expanded summary paragraph, What you will discover section with 3-5 bullet points using bullet character, about the speaker paragraph, about the church paragraph, subscribe and follow CTA lines, ' + youtube + '","chapters":[{"time":"0:00","title":"Introduction"},{"time":"EST","title":"Section title"}],"tags":["tag1","tag2","tag3","tag4","tag5","tag6","tag7","tag8","tag9","tag10","tag11","tag12","tag13","tag14","tag15"],"thumbnailConcepts":["Short punchy text concept 1 (under 6 words)","Concept 2","Concept 3"]}\nSERMON: ' + txt;
 }
 function P_HOOKS(txt, meta) {
-  return 'Analyze this sermon and generate social media content hooks using the pattern interrupt framework — helping church content stop the scroll in the first few seconds. Return ONLY valid JSON:\n{"messageHooks":[{"hook":"Opening line 1 — curiosity or tension","type":"curiosity","platform":"TikTok / Instagram Reels"},{"hook":"Opening line 2 — names a problem or pain point","type":"problem","platform":"Facebook / Instagram"},{"hook":"Opening line 3 — challenges a common assumption","type":"challenge","platform":"TikTok"},{"hook":"Opening line 4 — specific number or bold promise","type":"promise","platform":"Instagram / Facebook"},{"hook":"Opening line 5 — direct question that creates tension","type":"question","platform":"All platforms"}],"visualHooks":[{"concept":"Visual idea for first 3 seconds","howTo":"Simple production note the team can execute"},{"concept":"Visual 2","howTo":"Production note"},{"concept":"Visual 3","howTo":"Production note"},{"concept":"Visual 4","howTo":"Production note"},{"concept":"Visual 5","howTo":"Production note"}],"audioHooks":[{"concept":"Audio idea for first 3 seconds","howTo":"Simple production note"},{"concept":"Audio 2","howTo":"Production note"},{"concept":"Audio 3","howTo":"Production note"},{"concept":"Audio 4","howTo":"Production note"},{"concept":"Audio 5","howTo":"Production note"}],"excerptSetups":[{"title":"Sermon clip title","setup":"1-2 sentence setup line that frames why someone should watch this clip — e.g. If you have ever felt like God is distant this is worth hearing"}]}\nSERMON: ' + txt;
+  var speaker = (meta && meta.speaker) || 'the speaker';
+  return 'You are a church social media strategist specializing in scroll-stopping content. Analyze this sermon by ' + speaker + ' and generate hooks that grab attention in the first 3 seconds. Return ONLY valid JSON with these exact keys:\n'
+  + '{"messageHooks":['
+  + '{"hook":"hook text","type":"curiosity","platform":"TikTok / Instagram Reels"},'
+  + '{"hook":"hook text","type":"problem","platform":"Facebook / Instagram"},'
+  + '{"hook":"hook text","type":"challenge","platform":"TikTok"},'
+  + '{"hook":"hook text","type":"promise","platform":"Instagram / Facebook"},'
+  + '{"hook":"hook text","type":"question","platform":"All platforms"}],'
+  + '"visualHooks":['
+  + '{"concept":"visual concept for first 3 seconds","howTo":"simple production note"},'
+  + '{"concept":"...","howTo":"..."},'
+  + '{"concept":"...","howTo":"..."},'
+  + '{"concept":"...","howTo":"..."},'
+  + '{"concept":"...","howTo":"..."}],'
+  + '"audioHooks":['
+  + '{"concept":"audio concept for first 3 seconds","howTo":"simple production note"},'
+  + '{"concept":"...","howTo":"..."},'
+  + '{"concept":"...","howTo":"..."},'
+  + '{"concept":"...","howTo":"..."},'
+  + '{"concept":"...","howTo":"..."}],'
+  + '"excerptSetups":['
+  + '{"title":"clip title","setup":"1-2 sentence context line explaining why someone should watch this clip"}'
+  + ']}'
+  + '\nIMPORTANT: Replace ALL placeholder text (...) with real content specific to this sermon. Make every hook compelling and sermon-specific.'
+  + '\n\nSERMON TRANSCRIPT:\n' + txt;
 }
 var R = {
   strategy: function (txt) {
@@ -702,9 +726,9 @@ function SettingsPanel(props) {
       color: "#999"
     }
   }, "\u00D7")), React.createElement("div", {
-    style: { background: "#FFF8E6", border: "1px solid #FFAD0066", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }
+    style: { background: "#E8F8FC", border: "1px solid #00B4D866", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }
   },
-    React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "#4A1640", margin: "0 0 4px" } }, "\uD83D\uDD11 Anthropic API Key"),
+    React.createElement("p", { style: { fontSize: 12, fontWeight: 700, color: "#051018", margin: "0 0 4px" } }, "\uD83D\uDD11 Anthropic API Key"),
     React.createElement("p", { style: { fontSize: 11, color: "#888", margin: "0 0 8px", lineHeight: 1.5 } }, "Required to analyze sermons. Get your free key at console.anthropic.com \u2192 API Keys"),
     React.createElement("input", {
       type: "password",
@@ -1104,7 +1128,7 @@ function SermonArchive(props) {
     }
   }, "Select")))), showImport && React.createElement("div", {
     style: {
-      background: "#F8F0F7",
+      background: "#EBF8FC",
       border: "1px solid " + purple + "33",
       borderRadius: 12,
       padding: "14px 16px",
@@ -2851,7 +2875,7 @@ function App() {
     setLoadHooks(true);
     setErrHooks(false);
     try {
-      var raw = await callAPI(P_HOOKS(txt, meta), 4000);
+      var raw = await callAPI(P_HOOKS(txt, meta), 6000);
       var p = parseJ(raw);
       if (p && (p.messageHooks || p.visualHooks)) {
         setHooksData(p);
@@ -2862,6 +2886,7 @@ function App() {
         }, 1500);
         return;
       } else {
+      console.error("Hooks failed:", e && e.message);
         setErrHooks(true);
       }
     } catch (e) {
@@ -6198,13 +6223,14 @@ function App() {
       runHooks(input);
     }
   }), !hooksData && !loadHooks && !errHooks && React.createElement("div", {
-    style: {
-      textAlign: "center",
-      padding: 20,
-      color: "#999",
-      fontSize: 13
-    }
-  }, "Generating scroll-stopping hooks\u2026"), loadHooks && React.createElement(Spinner, {
+    style: { textAlign: "center", padding: "20px 0" }
+  },
+    React.createElement("p", { style: { fontSize: 13, color: "#999", marginBottom: 12 } }, "Generating scroll-stopping hooks\u2026"),
+    React.createElement("button", {
+      onClick: function() { runHooks(input); },
+      style: { fontSize: 12, padding: "6px 16px", borderRadius: 8, border: "1px solid " + TEAL, background: "#fff", color: NAVY, cursor: "pointer" }
+    }, "\u21BA If nothing loads, tap to generate")
+  ), loadHooks && React.createElement(Spinner, {
     label: "Analyzing for scroll-stopping hooks\u2026"
   }), hooksData && React.createElement("div", null, React.createElement("div", {
     style: {
