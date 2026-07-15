@@ -184,13 +184,34 @@ async function downloadCard(quote, speaker, photo, gold, purple) {
 // P_CORE_B handles carousels only (~3000-4500 tokens response).
 // Previously one call tried to do all of this in 6000 tokens → frequent truncation & parse failure.
 
+// Carousel Style Controls — preset descriptions + helper to build prompt context.
+// Feeds into P_CORE_B (initial generation) and P.carousel (regen). Text-only —
+// does not reference uploaded photos (photos are not sent to the AI).
+var CAROUSEL_STYLE_PRESETS = {
+  "Bold & Minimal": "Bold headline, 1-2 lines per slide, dark background, white text.",
+  "Clean & Light": "Airy layout, soft colors, elegant serif-style tone in the copy.",
+  "Cinematic Dark": "High contrast, dramatic, cinematic feel, short punchy text.",
+  "Warm & Pastoral": "Earthy tones, warm background, conversational copy.",
+  "Editorial": "Magazine-style, strong hierarchy, bold numbers or pull stats."
+};
+function carouselStyleCtx(meta) {
+  var parts = [];
+  if (meta && meta.carouselStyle && CAROUSEL_STYLE_PRESETS[meta.carouselStyle]) {
+    parts.push("Visual style direction: " + CAROUSEL_STYLE_PRESETS[meta.carouselStyle]);
+  }
+  if (meta && meta.carouselStyleNotes) {
+    parts.push("Additional style direction from the user: " + meta.carouselStyleNotes);
+  }
+  return parts.length ? " " + parts.join(" ") : "";
+}
 function P_CORE_A(txt, meta) {
   var seriesCtx = meta && meta.seriesName ? ' This sermon is part of a series called "' + meta.seriesName + '" (Part ' + (meta.seriesNumber || '?') + '). Generate a seriesTheme capturing the series arc.' : '';
   return 'Analyze this sermon.' + seriesCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Point 1","Point 2","Point 3","Point 4"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram"},{"text":"Powerful quote 2","platform":"TikTok"},{"text":"Powerful quote 3","platform":"Facebook"},{"text":"Powerful quote 4","platform":"Instagram"},{"text":"Powerful quote 5","platform":"Facebook"},{"text":"Powerful quote 6","platform":"TikTok"},{"text":"Powerful quote 7","platform":"Instagram"}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
 }
 function P_CORE_B(txt, meta) {
   var t = meta.title || "Sermon";
-  return 'Analyze this sermon. Create 4 distinct Instagram carousel series, each with a different angle/hook. Return ONLY valid JSON:\n{"carousel":[{"sermonTitle":"' + t + '","coverHeadline":"HOOK 1 IN ALL CAPS","coverQuote":"Opening quote","slides":[{"number":1,"text":"Key point 1"},{"number":2,"text":"Key point 2"},{"number":3,"text":"Key point 3"},{"number":4,"text":"Key point 4"},{"number":5,"text":"Key point 5"}],"statementLine":"Bold statement with [HL]highlighted phrase[/HL] here.","statementCta":"Clear call to action sentence.","bonusTitle":"Questions:","bonusItems":["Reflection question 1?","Reflection question 2?","Reflection question 3?","Reflection question 4?","Reflection question 5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 2 DIFFERENT ANGLE","coverQuote":"Second quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"},{"number":4,"text":"Point 4"},{"number":5,"text":"Point 5"}],"statementLine":"[HL]Highlighted phrase[/HL] bold statement.","statementCta":"Second call to action.","bonusTitle":"Reflect:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 3 THIRD ANGLE","coverQuote":"Third quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"},{"number":4,"text":"Point 4"},{"number":5,"text":"Point 5"}],"statementLine":"Statement with [HL]key phrase[/HL].","statementCta":"Third call to action.","bonusTitle":"Ask:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 4 FOURTH ANGLE","coverQuote":"Fourth quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"},{"number":4,"text":"Point 4"},{"number":5,"text":"Point 5"}],"statementLine":"[HL]Key phrase[/HL] statement.","statementCta":"Fourth call to action.","bonusTitle":"Deeper:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube"}]}\nSERMON: ' + txt;
+  var styleCtx = carouselStyleCtx(meta);
+  return 'Analyze this sermon. Create 4 distinct Instagram carousel series, each with a different angle/hook.' + styleCtx + ' Return ONLY valid JSON:\n{"carousel":[{"sermonTitle":"' + t + '","coverHeadline":"HOOK 1 IN ALL CAPS","coverQuote":"Opening quote","slides":[{"number":1,"text":"Key point 1"},{"number":2,"text":"Key point 2"},{"number":3,"text":"Key point 3"},{"number":4,"text":"Key point 4"},{"number":5,"text":"Key point 5"}],"statementLine":"Bold statement with [HL]highlighted phrase[/HL] here.","statementCta":"Clear call to action sentence.","bonusTitle":"Questions:","bonusItems":["Reflection question 1?","Reflection question 2?","Reflection question 3?","Reflection question 4?","Reflection question 5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 2 DIFFERENT ANGLE","coverQuote":"Second quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"},{"number":4,"text":"Point 4"},{"number":5,"text":"Point 5"}],"statementLine":"[HL]Highlighted phrase[/HL] bold statement.","statementCta":"Second call to action.","bonusTitle":"Reflect:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 3 THIRD ANGLE","coverQuote":"Third quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"},{"number":4,"text":"Point 4"},{"number":5,"text":"Point 5"}],"statementLine":"Statement with [HL]key phrase[/HL].","statementCta":"Third call to action.","bonusTitle":"Ask:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 4 FOURTH ANGLE","coverQuote":"Fourth quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"},{"number":4,"text":"Point 4"},{"number":5,"text":"Point 5"}],"statementLine":"[HL]Key phrase[/HL] statement.","statementCta":"Fourth call to action.","bonusTitle":"Deeper:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube"}]}\nSERMON: ' + txt;
 }
 function P_CONTENT(txt) {
   return 'Analyze this sermon. Return ONLY valid JSON:\n{"sermonExcerpts":[{"title":"Clip title","platform":"Instagram Reels / TikTok","estimatedDuration":"1:30","wordCount":220,"text":"Verbatim passage under 2 min","caption":"Caption with hashtags","whyItWorks":"Why it works standalone"},{"title":"Clip 2","platform":"TikTok","estimatedDuration":"1:45","wordCount":250,"text":"Second verbatim passage","caption":"Caption","whyItWorks":"Why it works"}],"reelStoryboards":[{"title":"Reel 1","platform":"Instagram Reels","duration":"30 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4 CTA"],"caption":"Caption","targetAge":"18-25"},{"title":"Reel 2","platform":"TikTok","duration":"45 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"26-45"},{"title":"Reel 3","platform":"Instagram Reels","duration":"60 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"18-25"},{"title":"Reel 4","platform":"Facebook Reels","duration":"30 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"26-45"}],"skits":[{"title":"Skit 1","concept":"Concept","theme":"Theme","setting":"Setting","cast":"1-2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"18-25","productionTip":"Tip"},{"title":"Skit 2","concept":"Concept","theme":"Theme","setting":"Setting","cast":"2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"26-45","productionTip":"Tip"},{"title":"Skit 3","concept":"Concept","theme":"Theme","setting":"Setting","cast":"1-2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"18-25","productionTip":"Tip"},{"title":"Skit 4","concept":"Concept","theme":"Theme","setting":"Setting","cast":"2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"26-45","productionTip":"Tip"}]}\nSERMON: ' + txt;
@@ -272,7 +293,8 @@ var R = {
   },
   carousel: function (txt, meta) {
     var t = meta && meta.title || "Sermon";
-    return 'Analyze this sermon. Create 4 fresh carousels with different angles. Return ONLY JSON: {"carousel":[{"sermonTitle":"' + t + '","coverHeadline":"FRESH HOOK 1","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL] STATEMENT.","statementCta":"CTA.","bonusTitle":"Questions:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 2","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL].","statementCta":"CTA 2.","bonusTitle":"Reflect:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 3","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL].","statementCta":"CTA 3.","bonusTitle":"Ask:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 4","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL].","statementCta":"CTA 4.","bonusTitle":"Deeper:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"}]}\nSERMON: ' + txt;
+    var styleCtx = carouselStyleCtx(meta);
+    return 'Analyze this sermon. Create 4 fresh carousels with different angles.' + styleCtx + ' Return ONLY JSON: {"carousel":[{"sermonTitle":"' + t + '","coverHeadline":"FRESH HOOK 1","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL] STATEMENT.","statementCta":"CTA.","bonusTitle":"Questions:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 2","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL].","statementCta":"CTA 2.","bonusTitle":"Reflect:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 3","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL].","statementCta":"CTA 3.","bonusTitle":"Ask:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"},{"sermonTitle":"' + t + '","coverHeadline":"HOOK 4","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"},{"number":4,"text":"P4"},{"number":5,"text":"P5"}],"statementLine":"[HL]phrase[/HL].","statementCta":"CTA 4.","bonusTitle":"Deeper:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube"}]}\nSERMON: ' + txt;
   }
 };
 
@@ -2240,7 +2262,9 @@ function App() {
     videoLink: "",
     audioLink: "",
     seriesName: "",
-    seriesNumber: ""
+    seriesNumber: "",
+    carouselStyle: "",
+    carouselStyleNotes: ""
   });
   var meta = metaState[0],
     setMeta = metaState[1];
@@ -3940,7 +3964,58 @@ function App() {
     },
     placeholder: "Spotify, Apple Podcasts\u2026",
     style: inp
-  })))), urlErr && React.createElement("div", {
+  })))), React.createElement("div", {
+    style: {
+      marginTop: 8,
+      paddingTop: 10,
+      borderTop: "1px solid " + purple + "18"
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: "0 0 4px",
+      fontWeight: 500
+    }
+  }, "\uD83C\uDFA8 Carousel style (optional)"), React.createElement("select", {
+    value: meta.carouselStyle,
+    onChange: function (ev) {
+      setMeta(function (m) {
+        return Object.assign({}, m, {
+          carouselStyle: ev.target.value
+        });
+      });
+    },
+    style: Object.assign({}, inp, {
+      marginBottom: 6
+    })
+  }, React.createElement("option", {
+    value: ""
+  }, "No preset"), React.createElement("option", {
+    value: "Bold & Minimal"
+  }, "Bold & Minimal"), React.createElement("option", {
+    value: "Clean & Light"
+  }, "Clean & Light"), React.createElement("option", {
+    value: "Cinematic Dark"
+  }, "Cinematic Dark"), React.createElement("option", {
+    value: "Warm & Pastoral"
+  }, "Warm & Pastoral"), React.createElement("option", {
+    value: "Editorial"
+  }, "Editorial")), React.createElement("textarea", {
+    value: meta.carouselStyleNotes,
+    onChange: function (ev) {
+      setMeta(function (m) {
+        return Object.assign({}, m, {
+          carouselStyleNotes: ev.target.value
+        });
+      });
+    },
+    placeholder: "Describe the visual style you want\u2026",
+    style: Object.assign({}, inp, {
+      minHeight: 50,
+      resize: "vertical"
+    })
+  })), urlErr && React.createElement("div", {
     style: {
       background: GOLD_L,
       border: "1px solid " + gold + "66",
