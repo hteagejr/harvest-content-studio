@@ -3403,7 +3403,8 @@ function App() {
     Polls: !!coreData,
     Reels: !!contentData,
     Skits: !!contentData,
-    Written: !!coreData
+    Written: !!coreData,
+    Hooks: !!coreData
   };
   function fmtDate(d) {
     try {
@@ -4401,8 +4402,11 @@ function App() {
       display: "flex",
       gap: 2,
       overflowX: "auto",
+      flexWrap: "nowrap",
       flex: 1,
-      WebkitOverflowScrolling: "touch"
+      WebkitOverflowScrolling: "touch",
+      msOverflowStyle: "none",
+      scrollbarWidth: "none"
     }
   }, TABS.map(function (t) {
     var ready = tabReady[t];
@@ -4415,8 +4419,8 @@ function App() {
       },
       style: {
         whiteSpace: "nowrap",
-        fontSize: 13,
-        padding: "5px 14px",
+        fontSize: 11,
+        padding: "5px 10px",
         borderRadius: 20,
         border: "1.5px solid " + (activeTab === t ? purple : "transparent"),
         background: activeTab === t ? purple : ready ? "transparent" : "#F5F5F5",
