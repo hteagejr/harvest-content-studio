@@ -3708,6 +3708,17 @@ function App() {
       setShareToast(false);
     }, 2000);
   }
+  // Small deterministic hash so opener/closer variants are stable for a
+  // given sermon (no flicker as the user types elsewhere) but differ from
+  // sermon to sermon, giving the "varied, not robotic" feel requested.
+  function pickIdx(seed, len) {
+    var s = String(seed || "x");
+    var h = 0;
+    for (var i = 0; i < s.length; i++) {
+      h = (h * 31 + s.charCodeAt(i)) % 1000003;
+    }
+    return Math.abs(h) % len;
+  }
   // Feature 7 — Member Sharing Toolkit. Assembles six sermon-specific
   // messages from data ALREADY generated elsewhere in the app (quotes,
   // hooks, devotional, key points). No new API call, no token cost, no
@@ -3718,31 +3729,52 @@ function App() {
     var link = meta.videoLink || settings.youtubeLink || meta.audioLink || settings.appUrl || "";
     var quote = coreData && coreData.quotes && coreData.quotes[0] && coreData.quotes[0].text || "";
     var hook = hooksData && hooksData.messageHooks && hooksData.messageHooks[0] && hooksData.messageHooks[0].hook || quote;
-    var church = settings.churchName || "my church";
+    var speaker = meta.speaker || "";
+    var series = meta.seriesName || "";
+    var seed = theme + (meta.title || "");
+    var i3 = pickIdx(seed, 3);
+    var NAME = "{name}";
 
-    var invite = "Hey! Come with me to " + church + " this Sunday" + (meta.seriesName ? " \u2014 we're in a series called \"" + meta.seriesName + "\"" : ", the message this week is on " + theme) + ". I think you'd really connect with it.";
+    // ── Personal Invite ── points at the ONGOING series (still true next
+    // Sunday), never at last week's specific theme, since by the time this
+    // is sent, that sermon has already happened.
+    var inviteHook = series ? "we're in a series called \"" + series + "\" and I think you'd really connect with it" : "I think you'd really like it";
+    var inviteVariants = ["Hey " + NAME + ", been thinking about you \u2014 any chance you'd want to come to church with me this Sunday? " + inviteHook + ". No pressure either way, just wanted to ask \uD83D\uDE4F", "Hey " + NAME + "! I'd love to have you join me at church this Sunday \u2014 " + inviteHook + ". Let me know if you're free!", NAME + ", hey \u2014 want to come to church with me this Sunday? " + inviteHook + ". Would mean a lot to have you there."];
+    var invite = inviteVariants[i3];
     if (settings.appUrl) invite += " " + settings.appUrl;
 
-    var clip = (hook || "This part of Sunday's message stopped me in my tracks.") + (link ? "\n\nWatch here: " + link : "");
+    // ── Clip Share ──
+    var clipBody = hook || "This part of Sunday's message stopped me in my tracks.";
+    var clipVariants = ["Hey " + NAME + ", I have to send you this \u2014 " + clipBody + (link ? "\n\nHere's the clip: " + link : "") + "\n\nLet me know what you think!", "Hey " + NAME + "! This part of Sunday's message stuck with me \u2014 " + clipBody + (link ? "\n\n" + link : "") + "\n\nWorth the couple minutes.", NAME + ", ok this is exactly the kind of thing you'd appreciate \u2014 " + clipBody + (link ? "\n\n" + link : "")];
+    var clip = clipVariants[i3];
 
-    var quoteDrop = quote ? "\u201C" + quote + "\u201D" + (meta.speaker ? "\n\u2014 " + meta.speaker : "") : "This Sunday's message was exactly what I needed to hear.";
+    // ── Quote Drop ──
+    var quoteLine = quote ? "\u201C" + quote + "\u201D" + (speaker ? "\n\u2014 " + speaker : "") : "This Sunday's message was exactly what I needed to hear.";
+    var quoteVariants = ["Hey " + NAME + ", this one stopped me in my tracks Sunday:\n\n" + quoteLine + "\n\nThought of you when I heard it.", "Hey " + NAME + "! Had to share this with you:\n\n" + quoteLine, NAME + ", been thinking about this all week:\n\n" + quoteLine + "\n\nHope it lands with you the way it did for me."];
+    var quoteDrop = quoteVariants[i3];
 
-    var full = buildShareText();
+    // ── Full Share ── (kept buildShareText() as the body — already
+    // covers title/speaker/theme/summary/links — just adds a real opener
+    // and closer around it so it doesn't read like an announcement)
+    var fullBody = buildShareText();
+    var fullVariants = ["Hey " + NAME + ", wanted to pass this along \u2014 church was really good this week.\n\n" + fullBody + "\n\nThought you'd like it \uD83D\uDC9B", "Hey " + NAME + "! Church hit different this week, had to share.\n\n" + fullBody + "\n\nLet me know what you think!", NAME + ", hey \u2014 this week's message really got me thinking, wanted to pass it along.\n\n" + fullBody + "\n\nWould love to hear your thoughts."];
+    var full = fullVariants[i3];
 
+    // ── SMS ── kept hook-first with no name (160-char budget is too tight
+    // to fit a greeting and still say anything real).
     var smsHookPart = hook || quote || theme;
     var smsLinkPart = link ? " " + link : "";
     var smsBudget = 155 - smsLinkPart.length;
     var smsText = smsHookPart.length > smsBudget ? smsHookPart.slice(0, Math.max(0, smsBudget - 1)).trim() + "\u2026" : smsHookPart;
     var sms = smsText + smsLinkPart;
 
+    // ── Devotional Forward ──
     var day1 = writtenBData && writtenBData.devotional && writtenBData.devotional.days && writtenBData.devotional.days[0];
-    var devotional;
-    if (day1) {
-      devotional = "Sharing today's devotional from " + church + ":\n\n" + (day1.title || "") + "\n" + (day1.reading || "") + (day1.reflection ? "\n\nReflect: " + day1.reflection : "");
-    } else {
-      var kp = coreData && coreData.keyPoints && coreData.keyPoints[0];
-      devotional = "Sharing something from Sunday's message on " + theme + (kp ? ":\n\n" + kp : "") + "\n\nWorth sitting with this week.";
-    }
+    var kp = coreData && coreData.keyPoints && coreData.keyPoints[0];
+    var devTitle = day1 ? day1.title || "" : "";
+    var devBody = day1 ? day1.reading || "" : kp || "";
+    var devVariants = ["Hey " + NAME + ", been going through this devotional and thought of you" + (devTitle ? " \u2014 Day 1 was on " + devTitle : "") + ".\n\n" + devBody + "\n\nWould love to hear what you think if you get a chance \uD83D\uDE4F", "Hey " + NAME + "! Wanted to pass this along" + (devTitle ? " \u2014 " + devTitle : "") + ".\n\n" + devBody + "\n\nNo pressure, just thought you'd appreciate it.", NAME + ", hey \u2014 this really spoke to me" + (devTitle ? " (" + devTitle + ")" : "") + ".\n\n" + devBody + "\n\nCurious what stands out to you."];
+    var devotional = devVariants[i3];
 
     return {
       invite: invite,
