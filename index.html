@@ -2650,6 +2650,24 @@ function App() {
   var urlErrState = useState(false),
     urlErr = urlErrState[0],
     setUrlErr = urlErrState[1];
+  // Feature 4 (part 1) — YouTube URL transcription. inputMode toggles
+  // between pasting a transcript and fetching one from a YouTube URL via
+  // the fetch-captions Netlify function.
+  var inputModeState = useState("paste"),
+    inputMode = inputModeState[0],
+    setInputMode = inputModeState[1];
+  var ytUrlState = useState(""),
+    ytUrl = ytUrlState[0],
+    setYtUrl = ytUrlState[1];
+  var ytFetchingState = useState(false),
+    ytFetching = ytFetchingState[0],
+    setYtFetching = ytFetchingState[1];
+  var ytErrorState = useState(""),
+    ytError = ytErrorState[0],
+    setYtError = ytErrorState[1];
+  var ytPreviewState = useState(""),
+    ytPreview = ytPreviewState[0],
+    setYtPreview = ytPreviewState[1];
   var activeTabState = useState("Strategy"),
     activeTab = activeTabState[0],
     setActiveTab = activeTabState[1];
@@ -3602,6 +3620,39 @@ function App() {
       }, i * 400);
     });
   }
+  // Feature 4 (part 1) — calls the fetch-captions Netlify function, which
+  // does the actual YouTube caption retrieval server-side (browsers can't
+  // fetch YouTube's caption files directly). Shows a preview the user must
+  // explicitly confirm before it replaces anything in the transcript box.
+  async function fetchYouTubeCaptions() {
+    if (!ytUrl.trim()) return;
+    setYtFetching(true);
+    setYtError("");
+    setYtPreview("");
+    try {
+      var res = await fetch("/.netlify/functions/fetch-captions?url=" + encodeURIComponent(ytUrl.trim()));
+      var data = await res.json().catch(function () {
+        return null;
+      });
+      if (!res.ok || !data || data.error) {
+        setYtError(data && data.error ? data.error : "Could not fetch captions for that video. Please try again or paste the transcript manually.");
+      } else if (!data.transcript || !data.transcript.trim()) {
+        setYtError("Captions came back empty for this video.");
+      } else {
+        setYtPreview(data.transcript);
+      }
+    } catch (e) {
+      setYtError("Network error while fetching captions \u2014 the caption service may not be deployed yet, or your connection dropped. Please try again.");
+    }
+    setYtFetching(false);
+  }
+  function useYouTubeTranscript() {
+    setInput(ytPreview);
+    setYtPreview("");
+    setYtUrl("");
+    setInputMode("paste");
+    setUrlErr(false);
+  }
   function analyze() {
     if (!input.trim()) {
       alert("Please paste your sermon transcript into the text box first, then click Analyze.");
@@ -4425,7 +4476,31 @@ function App() {
       minHeight: 50,
       resize: "vertical"
     })
-  })), urlErr && React.createElement("div", {
+  })), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      marginBottom: 10
+    }
+  }, ["paste", "youtube"].map(function (m) {
+    return React.createElement("button", {
+      key: m,
+      onClick: function () {
+        setInputMode(m);
+      },
+      style: {
+        flex: 1,
+        padding: "8px",
+        borderRadius: 8,
+        border: "1px solid " + (inputMode === m ? purple : "#ddd"),
+        background: inputMode === m ? purple : "#fff",
+        color: inputMode === m ? "#fff" : "#555",
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: "pointer"
+      }
+    }, m === "paste" ? "\uD83D\uDCDD Paste transcript" : "\uD83C\uDFAC YouTube URL");
+  })), inputMode === "paste" && urlErr && React.createElement("div", {
     style: {
       background: GOLD_L,
       border: "1px solid " + gold + "66",
@@ -4440,14 +4515,30 @@ function App() {
       color: PURPLE_D,
       margin: "0 0 4px"
     }
-  }, "\u26A0 Paste the transcript, not the YouTube URL"), React.createElement("p", {
+  }, "\u26A0 Looks like a YouTube link, not a transcript"), React.createElement("p", {
     style: {
       fontSize: 13,
       color: "#555",
-      margin: 0,
+      margin: "0 0 8px",
       lineHeight: 1.6
     }
-  }, "On YouTube: open the video \u2192 click ", React.createElement("b", null, "\u00B7\u00B7\u00B7"), " below \u2192 ", React.createElement("b", null, "Show transcript"), " \u2192 select all \u2192 copy \u2192 paste here.")), React.createElement("textarea", {
+  }, "On YouTube: open the video \u2192 click ", React.createElement("b", null, "\u00B7\u00B7\u00B7"), " below \u2192 ", React.createElement("b", null, "Show transcript"), " \u2192 select all \u2192 copy \u2192 paste here."), React.createElement("button", {
+    onClick: function () {
+      setYtUrl(input.trim());
+      setInputMode("youtube");
+      setUrlErr(false);
+    },
+    style: {
+      fontSize: 12,
+      padding: "6px 12px",
+      borderRadius: 6,
+      border: "none",
+      background: purple,
+      color: "#fff",
+      cursor: "pointer",
+      fontWeight: 600
+    }
+  }, "\u26A1 Fetch it automatically instead")), inputMode === "paste" && React.createElement("textarea", {
     value: input,
     onChange: function (ev) {
       setInput(ev.target.value);
@@ -4465,7 +4556,124 @@ function App() {
       lineHeight: 1.6,
       background: "#FAFAFA"
     }
+  }), inputMode === "youtube" && React.createElement("div", {
+    style: {
+      background: "#faf9fc",
+      border: "1px solid " + purple + "22",
+      borderRadius: 10,
+      padding: "14px 16px",
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: "#333",
+      margin: "0 0 8px"
+    }
+  }, "\uD83C\uDFAC Paste a YouTube URL"), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap"
+    }
+  }, React.createElement("input", {
+    type: "text",
+    value: ytUrl,
+    onChange: function (ev) {
+      setYtUrl(ev.target.value);
+    },
+    placeholder: "https://www.youtube.com/watch?v=...",
+    style: Object.assign({}, inp, {
+      flex: 1,
+      minWidth: 200
+    })
+  }), React.createElement("button", {
+    onClick: fetchYouTubeCaptions,
+    disabled: ytFetching || !ytUrl.trim(),
+    style: {
+      padding: "8px 16px",
+      borderRadius: 8,
+      border: "none",
+      background: gold,
+      color: PURPLE_D,
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: "pointer",
+      opacity: ytFetching || !ytUrl.trim() ? 0.5 : 1
+    }
+  }, ytFetching ? "Fetching\u2026" : "Fetch transcript")), ytFetching && React.createElement(Spinner, {
+    label: "Fetching captions from YouTube\u2026"
+  }), ytError && React.createElement("div", {
+    style: {
+      background: GOLD_L,
+      border: "1px solid " + gold + "55",
+      borderRadius: 8,
+      padding: "10px 12px",
+      marginTop: 10,
+      fontSize: 13,
+      color: PURPLE_D
+    }
+  }, "\u26A0 " + ytError), ytPreview && React.createElement("div", {
+    style: {
+      marginTop: 10
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#888",
+      margin: "0 0 6px",
+      fontWeight: 600
+    }
+  }, "Preview \u2014 review before using:"), React.createElement("textarea", {
+    readOnly: true,
+    value: ytPreview,
+    rows: 8,
+    style: {
+      width: "100%",
+      fontSize: 13,
+      border: "1px solid #DDD",
+      borderRadius: 8,
+      padding: "10px 12px",
+      resize: "vertical",
+      lineHeight: 1.6,
+      background: "#FAFAFA",
+      color: "#333",
+      fontFamily: "inherit",
+      marginBottom: 8
+    }
   }), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8
+    }
+  }, React.createElement("button", {
+    onClick: useYouTubeTranscript,
+    style: {
+      padding: "8px 16px",
+      borderRadius: 8,
+      border: "none",
+      background: purple,
+      color: "#fff",
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: "pointer"
+    }
+  }, "\u2713 Use this transcript"), React.createElement("button", {
+    onClick: function () {
+      setYtPreview("");
+    },
+    style: {
+      padding: "8px 16px",
+      borderRadius: 8,
+      border: "1px solid #DDD",
+      background: "#fff",
+      color: "#888",
+      fontWeight: 600,
+      fontSize: 13,
+      cursor: "pointer"
+    }
+  }, "Try a different video")))), React.createElement("div", {
     style: {
       display: "flex",
       gap: 10,
