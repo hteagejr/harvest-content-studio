@@ -269,6 +269,26 @@ function P_LEADERS(txt, meta) {
   p += " SERMON: " + txt;
   return p;
 }
+function P_YOUTH(txt, meta) {
+  var sp = meta && meta.speaker || "the speaker";
+  var p = "Analyze this sermon by " + sp + " and adapt it for teenagers (ages 13-18).";
+  p += " Teens need cultural relevance, not watered-down theology \u2014 same truth, different voice: real, direct, no fluff, not condescending, not trying too hard.";
+  p += " Return ONLY valid JSON: {\"youthMinistry\":{";
+  p += "\"devotional\":{\"title\":\"3-Day Devotional title\",\"days\":[";
+  p += "{\"day\":1,\"title\":\"...\",\"scripture\":\"ref\",\"reading\":\"1 short paragraph in a voice that speaks to teens\",\"reflection\":\"one question\",\"prayer\":\"1-2 sentence prayer\"},";
+  p += "{\"day\":2,\"title\":\"...\",\"scripture\":\"ref\",\"reading\":\"1 short paragraph\",\"reflection\":\"one question\",\"prayer\":\"1-2 sentence prayer\"},";
+  p += "{\"day\":3,\"title\":\"...\",\"scripture\":\"ref\",\"reading\":\"1 short paragraph\",\"reflection\":\"one question\",\"prayer\":\"1-2 sentence prayer\"}]},";
+  p += "\"smallGroupYouth\":{\"icebreaker\":\"opens with something teens actually experience \u2014 social media, school, relationships, identity\",";
+  p += "\"questions\":[{\"question\":\"Q1\",\"followUp\":\"F1\"},{\"question\":\"Q2\",\"followUp\":\"F2\"},{\"question\":\"Q3\",\"followUp\":\"F3\"},{\"question\":\"Q4\",\"followUp\":\"F4\"},{\"question\":\"Q5\",\"followUp\":\"F5\"}],";
+  p += "\"application\":\"one practical, action-oriented takeaway\"},";
+  p += "\"socialContent\":[{\"platform\":\"Instagram\",\"text\":\"short punchy post in a tone teens would actually share\"},";
+  p += "{\"platform\":\"TikTok caption\",\"text\":\"short punchy caption\"},{\"platform\":\"Snapchat/Story\",\"text\":\"short punchy line\"}],";
+  p += "\"weeklyChallenge\":\"one concrete action for the week tied to the sermon's application point\",";
+  p += "\"parentBrief\":\"one paragraph summarizing what teens studied this week so parents can continue the conversation at home\"";
+  p += "}}";
+  p += " SERMON: " + txt;
+  return p;
+}
 function P_YOUTUBE(txt, meta, dur, s) {
   var sp = meta.speaker || "the speaker";
   var church = s && s.churchName || "Harvest Church";
@@ -318,6 +338,18 @@ var R = {
     p += " Mentor tone, 220-350 words.";
     p += " Return ONLY JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"...\",";
     p += "\"content\":\"...\",\"scripture\":\"...\",\"keyPoints\":[\"...\",\"...\",\"...\"]}}";
+    p += " SERMON: " + txt;
+    return p;
+  },
+  youth: function (txt, meta) {
+    var sp = meta && meta.speaker || "the speaker";
+    var p = "Write fresh Youth Ministry content adapted from this sermon by " + sp + " for teenagers (ages 13-18).";
+    p += " Real, direct, culturally relevant \u2014 not condescending.";
+    p += " Return ONLY JSON: {\"youthMinistry\":{";
+    p += "\"devotional\":{\"title\":\"...\",\"days\":[{\"day\":1,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"reflection\":\"...\",\"prayer\":\"...\"},{\"day\":2,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"reflection\":\"...\",\"prayer\":\"...\"},{\"day\":3,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"reflection\":\"...\",\"prayer\":\"...\"}]},";
+    p += "\"smallGroupYouth\":{\"icebreaker\":\"...\",\"questions\":[{\"question\":\"Q1\",\"followUp\":\"F1\"},{\"question\":\"Q2\",\"followUp\":\"F2\"},{\"question\":\"Q3\",\"followUp\":\"F3\"},{\"question\":\"Q4\",\"followUp\":\"F4\"},{\"question\":\"Q5\",\"followUp\":\"F5\"}],\"application\":\"...\"},";
+    p += "\"socialContent\":[{\"platform\":\"Instagram\",\"text\":\"...\"},{\"platform\":\"TikTok caption\",\"text\":\"...\"},{\"platform\":\"Snapchat/Story\",\"text\":\"...\"}],";
+    p += "\"weeklyChallenge\":\"...\",\"parentBrief\":\"...\"}}";
     p += " SERMON: " + txt;
     return p;
   },
@@ -393,6 +425,44 @@ function CopyBtn(props) {
       cursor: "pointer"
     }
   }, c ? "✓ Copied" : label);
+}
+// Feature 6 — formats Youth Ministry content into one paste-ready message
+// for the Youth Director (Phase 2 simple export pattern from the roadmap).
+function buildYouthDirectorMessage(y, meta) {
+  if (!y) return "";
+  var theme = meta && meta.title || "this week's message";
+  var L = ["Hi Youth Director, here's this week's Youth Ministry content from Sunday's message on " + theme + ":", ""];
+  if (y.devotional) {
+    L.push("YOUTH DEVOTIONAL: " + (y.devotional.title || ""));
+    (y.devotional.days || []).forEach(function (d) {
+      L.push("Day " + d.day + (d.title ? " - " + d.title : ""));
+      if (d.reading) L.push(d.reading);
+      if (d.reflection) L.push("Reflect: " + d.reflection);
+      if (d.prayer) L.push("Prayer: " + d.prayer);
+      L.push("");
+    });
+  }
+  if (y.smallGroupYouth) {
+    L.push("SMALL GROUP GUIDE (YOUTH):");
+    if (y.smallGroupYouth.icebreaker) L.push("Icebreaker: " + y.smallGroupYouth.icebreaker);
+    (y.smallGroupYouth.questions || []).forEach(function (q, i) {
+      L.push(i + 1 + ". " + q.question + (q.followUp ? " (" + q.followUp + ")" : ""));
+    });
+    if (y.smallGroupYouth.application) L.push("Application: " + y.smallGroupYouth.application);
+    L.push("");
+  }
+  if (y.socialContent && y.socialContent.length) {
+    L.push("SOCIAL CONTENT:");
+    y.socialContent.forEach(function (s) {
+      L.push(s.platform + ": " + s.text);
+    });
+    L.push("");
+  }
+  if (y.weeklyChallenge) {
+    L.push("WEEKLY CHALLENGE: " + y.weeklyChallenge, "");
+  }
+  if (y.parentBrief) L.push("PARENT BRIEF: " + y.parentBrief);
+  return L.join("\n");
 }
 function Card(props) {
   return React.createElement("div", {
@@ -2433,6 +2503,17 @@ function App() {
   var errLeadersState = useState(false),
     errLeaders = errLeadersState[0],
     setErrLeaders = errLeadersState[1];
+  // Feature 6 — Youth Ministry content. On-demand only (no auto-fire) to
+  // avoid adding a 5th concurrent call during Analyze / rate-limit risk.
+  var youthDataState = useState(null),
+    youthData = youthDataState[0],
+    setYouthData = youthDataState[1];
+  var loadYouthState = useState(false),
+    loadYouth = loadYouthState[0],
+    setLoadYouth = loadYouthState[1];
+  var errYouthState = useState(false),
+    errYouth = errYouthState[0],
+    setErrYouth = errYouthState[1];
   var youtubeDataState = useState(null),
     youtubeData = youtubeDataState[0],
     setYoutubeData = youtubeDataState[1];
@@ -3025,6 +3106,37 @@ function App() {
     }
     setLoadLeaders(false);
   }
+  async function runYouth(txt, attempt) {
+    attempt = attempt || 1;
+    setLoadYouth(true);
+    setErrYouth(false);
+    try {
+      var raw = await callAPI(P_YOUTH(txt, meta), 4000);
+      var p = parseJ(raw);
+      if (p && p.youthMinistry) {
+        setYouthData(p.youthMinistry);
+      } else if (attempt < 2) {
+        setLoadYouth(false);
+        setTimeout(function () {
+          runYouth(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrYouth(true);
+      }
+    } catch (e) {
+      if (attempt < 2) {
+        setLoadYouth(false);
+        setTimeout(function () {
+          runYouth(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrYouth(true);
+      }
+    }
+    setLoadYouth(false);
+  }
   function restoreSession() {
     if (!savedSession) return;
     if (savedSession.meta) setMeta(savedSession.meta);
@@ -3350,6 +3462,7 @@ function App() {
     setWrittenAData(null);
     setWrittenBData(null);
     setEmergingLeadersData(null);
+    setYouthData(null);
     setErr1(false);
     setErrCarousel(false);
     setErr2(false);
@@ -3416,6 +3529,8 @@ function App() {
     });
     setEmergingLeadersData(null);
     setErrLeaders(false);
+    setYouthData(null);
+    setErrYouth(false);
     setHooksData(null);
     setErrHooks(false);
     setYoutubeData(null);
@@ -3447,7 +3562,7 @@ function App() {
           return Object.assign({}, prev, p);
         });else if (type === "devotionalGuide") setWrittenBData(function (prev) {
           return Object.assign({}, prev, p);
-        });else if (type === "leaders") setEmergingLeadersData(p.emergingLeaders || null);else if (type === "hooks") setHooksData(p);else if (type === "youtube") setYoutubeData(p);else setContentData(function (prev) {
+        });else if (type === "leaders") setEmergingLeadersData(p.emergingLeaders || null);else if (type === "youth") setYouthData(p.youthMinistry || null);else if (type === "hooks") setHooksData(p);else if (type === "youtube") setYoutubeData(p);else setContentData(function (prev) {
           return Object.assign({}, prev, p);
         });
         setEdits({});
@@ -7592,6 +7707,265 @@ function App() {
       }
     }, pt));
   })))),
+  // ── Youth Ministry (Studio) — Feature 6 ────────────────────────────────
+  coreData && React.createElement("div", {
+    style: {
+      marginTop: 24
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+      flexWrap: "wrap",
+      gap: 8
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: "linear-gradient(135deg," + purple + "," + PURPLE_D + ")",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 16
+    }
+  }, "\uD83D\uDD25"), React.createElement("div", null, React.createElement("p", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      margin: 0,
+      color: PURPLE_D
+    }
+  }, "Youth Ministry"), React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: 0
+    }
+  }, "Devotional, small group guide, social posts & more \u2014 ages 13-18"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, loadYouth && React.createElement(Spinner, {
+    label: "Adapting for youth\u2026"
+  }), youthData && React.createElement(CopyBtn, {
+    text: buildYouthDirectorMessage(youthData, meta),
+    label: "Copy for Youth Director"
+  }), youthData && React.createElement(StatusBadge, {
+    itemKey: "youth",
+    status: getStatus("youth"),
+    onUpdate: updateStatus
+  }), youthData && React.createElement("button", {
+    onClick: function () {
+      regen("youth", 4000);
+    },
+    disabled: !!(regenLoading === "youth" || !input.trim()),
+    style: {
+      fontSize: 12,
+      padding: "5px 12px",
+      borderRadius: 8,
+      border: "1px solid " + PURPLE + "33",
+      background: regenLoading === "youth" ? PURPLE_L : "#fff",
+      color: PURPLE,
+      cursor: "pointer",
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, regenLoading === "youth" ? "\u21BB Generating\u2026" : "\u21BB Regenerate"), !loadYouth && !youthData && !errYouth && React.createElement("button", {
+    onClick: function () {
+      runYouth(input);
+    },
+    disabled: !input.trim(),
+    style: {
+      fontSize: 12,
+      padding: "5px 14px",
+      borderRadius: 8,
+      border: "none",
+      background: gold,
+      color: PURPLE_D,
+      cursor: "pointer",
+      fontWeight: 600,
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, "Generate"))), errYouth && React.createElement(ErrBlock, {
+    label: "Youth Ministry content failed \u2014 tap to retry.",
+    onRetry: function () {
+      runYouth(input);
+    }
+  }), youthData && React.createElement("div", null, React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + purple,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: purple,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Youth Devotional" + (youthData.devotional && youthData.devotional.title ? " \u2014 " + youthData.devotional.title : "")), (youthData.devotional && youthData.devotional.days || []).map(function (d, i) {
+    return React.createElement("div", {
+      key: i,
+      style: {
+        marginBottom: 10
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        margin: "0 0 4px"
+      }
+    }, "Day " + d.day + (d.title ? " \u2014 " + d.title : "")), d.scripture && React.createElement("p", {
+      style: {
+        fontSize: 11,
+        color: "#888",
+        margin: "0 0 4px"
+      }
+    }, d.scripture), d.reading && React.createElement("p", {
+      style: {
+        fontSize: 13,
+        margin: "0 0 4px",
+        lineHeight: 1.5
+      }
+    }, d.reading), d.reflection && React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#555",
+        margin: "0 0 2px",
+        fontStyle: "italic"
+      }
+    }, "Reflect: " + d.reflection), d.prayer && React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#555",
+        margin: 0
+      }
+    }, "Prayer: " + d.prayer));
+  })), youthData.smallGroupYouth && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + gold,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: PURPLE_D,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Small Group Guide (Youth)"), youthData.smallGroupYouth.icebreaker && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: "0 0 8px",
+      fontStyle: "italic",
+      color: "#555"
+    }
+  }, "Icebreaker: " + youthData.smallGroupYouth.icebreaker), (youthData.smallGroupYouth.questions || []).map(function (q, i) {
+    return React.createElement("p", {
+      key: i,
+      style: {
+        fontSize: 13,
+        margin: "0 0 4px"
+      }
+    }, i + 1 + ". " + q.question + (q.followUp ? " (" + q.followUp + ")" : ""));
+  }), youthData.smallGroupYouth.application && React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#555",
+      marginTop: 8
+    }
+  }, "Application: " + youthData.smallGroupYouth.application)), youthData.socialContent && youthData.socialContent.length > 0 && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + purple,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: purple,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Youth Social Content"), youthData.socialContent.map(function (s, i) {
+    return React.createElement("div", {
+      key: i,
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        gap: 8,
+        marginBottom: 8
+      }
+    }, React.createElement("div", null, React.createElement("p", {
+      style: {
+        fontSize: 11,
+        color: "#888",
+        margin: "0 0 2px",
+        fontWeight: 600
+      }
+    }, s.platform), React.createElement("p", {
+      style: {
+        fontSize: 13,
+        margin: 0
+      }
+    }, s.text)), React.createElement(CopyBtn, {
+      text: s.text
+    }));
+  })), (youthData.weeklyChallenge || youthData.parentBrief) && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + gold
+    }
+  }, youthData.weeklyChallenge && React.createElement("div", {
+    style: {
+      marginBottom: youthData.parentBrief ? 10 : 0
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: PURPLE_D,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 4px"
+    }
+  }, "Weekly Challenge"), React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: 0
+    }
+  }, youthData.weeklyChallenge)), youthData.parentBrief && React.createElement("div", null, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: PURPLE_D,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 4px"
+    }
+  }, "Parent Brief"), React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: 0
+    }
+  }, youthData.parentBrief))))),
   // Congregation
   side === "congregation" && React.createElement("div", null, React.createElement("div", {
     style: {
