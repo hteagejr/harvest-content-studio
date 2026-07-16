@@ -6,8 +6,12 @@
 //
 // IMPORTANT — this uses YouTube's public caption track data embedded in the
 // video page, not an official API. YouTube does not guarantee this format
-// stays stable. If this ever silently stops working, that's almost
-// certainly why — check for YouTube changing the page structure.
+// stays stable, and (as of this writing) is known to sometimes block or
+// rate-limit requests from datacenter IPs (Netlify's servers included) with
+// a 429, a CAPTCHA-style challenge, or an EU cookie-consent redirect instead
+// of the real page. The CONSENT cookie below avoids the consent-redirect
+// case specifically; the 429/challenge case has no reliable server-side fix
+// — if that happens, "paste the transcript manually" is the fallback.
 //
 // No external npm dependencies — uses only Node's built-in https module,
 // so no package.json / install step is needed for this function to deploy.
@@ -19,19 +23,32 @@ function fetchUrl(url, redirects) {
   return new Promise(function (resolve, reject) {
     if (redirects > 5) return reject(new Error("Too many redirects"));
     https
-      .get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, function (res) {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          resolve(fetchUrl(res.headers.location, redirects + 1));
-          return;
+      .get(
+        url,
+        {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            // Skips YouTube's EU cookie-consent interstitial, which otherwise
+            // replaces the real page (and its caption data) with a consent form.
+            Cookie: "CONSENT=YES+1"
+          }
+        },
+        function (res) {
+          if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+            resolve(fetchUrl(res.headers.location, redirects + 1));
+            return;
+          }
+          var data = "";
+          res.on("data", function (chunk) {
+            data += chunk;
+          });
+          res.on("end", function () {
+            resolve({ statusCode: res.statusCode, body: data });
+          });
         }
-        var data = "";
-        res.on("data", function (chunk) {
-          data += chunk;
-        });
-        res.on("end", function () {
-          resolve(data);
-        });
-      })
+      )
       .on("error", reject);
   });
 }
@@ -75,14 +92,41 @@ exports.handler = async function (event) {
       };
     }
 
-    var pageHtml = await fetchUrl("https://www.youtube.com/watch?v=" + videoId);
+    var page = await fetchUrl("https://www.youtube.com/watch?v=" + videoId);
 
-    var match = pageHtml.match(/"captionTracks":(\[.*?\])/);
+    if (page.statusCode === 429) {
+      return {
+        statusCode: 429,
+        headers: headers,
+        body: JSON.stringify({ error: "YouTube is rate-limiting requests from our server right now (HTTP 429). This isn't about your video — try again in a few minutes, or paste the transcript manually for now." })
+      };
+    }
+    if (page.statusCode !== 200) {
+      return {
+        statusCode: 502,
+        headers: headers,
+        body: JSON.stringify({ error: "YouTube returned an unexpected response (HTTP " + page.statusCode + "). The video may be private, age-restricted, or region-locked. Please paste the transcript manually." })
+      };
+    }
+    if (/consent\.youtube\.com|"CONSENT_DECLINED"/.test(page.body)) {
+      return {
+        statusCode: 502,
+        headers: headers,
+        body: JSON.stringify({ error: "YouTube showed a cookie-consent page instead of the video. Please try again — if this keeps happening, paste the transcript manually." })
+      };
+    }
+
+    var match = page.body.match(/"captionTracks":(\[.*?\])/);
     if (!match) {
+      var looksBlocked = page.body.length < 5000;
       return {
         statusCode: 404,
         headers: headers,
-        body: JSON.stringify({ error: "No captions found for this video. It may not have captions enabled, or the video may be private/restricted." })
+        body: JSON.stringify({
+          error: looksBlocked
+            ? "YouTube returned a very short page, which usually means the request was blocked rather than that captions are missing. Try again shortly, or paste the transcript manually."
+            : "No captions found for this video. It may not have captions/auto-captions enabled."
+        })
       };
     }
 
@@ -118,8 +162,16 @@ exports.handler = async function (event) {
       };
     }
 
-    var captionXml = await fetchUrl(track.baseUrl);
-    var textMatches = captionXml.match(/<text[^>]*>([\s\S]*?)<\/text>/g) || [];
+    var captionRes = await fetchUrl(track.baseUrl);
+    if (captionRes.statusCode !== 200) {
+      return {
+        statusCode: 502,
+        headers: headers,
+        body: JSON.stringify({ error: "Could not download the caption file (HTTP " + captionRes.statusCode + "). Please try again." })
+      };
+    }
+
+    var textMatches = captionRes.body.match(/<text[^>]*>([\s\S]*?)<\/text>/g) || [];
 
     if (!textMatches.length) {
       return {
