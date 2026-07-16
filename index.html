@@ -188,16 +188,16 @@ async function downloadCard(quote, speaker, photo, gold, purple) {
 // Feeds into P_CORE_B (initial generation) and P.carousel (regen). Text-only —
 // does not reference uploaded photos (photos are not sent to the AI).
 var CAROUSEL_STYLE_PRESETS = {
-  "Bold & Minimal": "Bold headline, 1-2 lines per slide, dark background, white text.",
-  "Clean & Light": "Airy layout, soft colors, elegant serif-style tone in the copy.",
-  "Cinematic Dark": "High contrast, dramatic, cinematic feel, short punchy text.",
-  "Warm & Pastoral": "Earthy tones, warm background, conversational copy.",
-  "Editorial": "Magazine-style, strong hierarchy, bold numbers or pull stats."
+  "Direct & Punchy": "Bold headline, 1-2 lines per slide, direct and punchy phrasing.",
+  "Gentle & Reflective": "Soft, unhurried phrasing, reflective and thoughtful tone in the copy.",
+  "Urgent & Dramatic": "High-contrast, dramatic pacing, short punchy sentences that build urgency.",
+  "Warm & Conversational": "Earthy, personal, conversational copy — like talking to a friend.",
+  "Sharp & Analytical": "Magazine-style structure, strong hierarchy, bold numbers or pull stats."
 };
 function carouselStyleCtx(meta) {
   var parts = [];
   if (meta && meta.carouselStyle && CAROUSEL_STYLE_PRESETS[meta.carouselStyle]) {
-    parts.push("Visual style direction: " + CAROUSEL_STYLE_PRESETS[meta.carouselStyle]);
+    parts.push("Tone direction: " + CAROUSEL_STYLE_PRESETS[meta.carouselStyle]);
   }
   if (meta && meta.carouselStyleNotes) {
     parts.push("Additional style direction from the user: " + meta.carouselStyleNotes);
@@ -3977,7 +3977,7 @@ function App() {
       margin: "0 0 4px",
       fontWeight: 500
     }
-  }, "\uD83C\uDFA8 Carousel style (optional)"), React.createElement("select", {
+  }, "\uD83D\uDD8B\uFE0F Carousel tone (optional)"), React.createElement("select", {
     value: meta.carouselStyle,
     onChange: function (ev) {
       setMeta(function (m) {
@@ -3992,16 +3992,16 @@ function App() {
   }, React.createElement("option", {
     value: ""
   }, "No preset"), React.createElement("option", {
-    value: "Bold & Minimal"
-  }, "Bold & Minimal"), React.createElement("option", {
-    value: "Clean & Light"
-  }, "Clean & Light"), React.createElement("option", {
-    value: "Cinematic Dark"
-  }, "Cinematic Dark"), React.createElement("option", {
-    value: "Warm & Pastoral"
-  }, "Warm & Pastoral"), React.createElement("option", {
-    value: "Editorial"
-  }, "Editorial")), React.createElement("textarea", {
+    value: "Direct & Punchy"
+  }, "Direct & Punchy"), React.createElement("option", {
+    value: "Gentle & Reflective"
+  }, "Gentle & Reflective"), React.createElement("option", {
+    value: "Urgent & Dramatic"
+  }, "Urgent & Dramatic"), React.createElement("option", {
+    value: "Warm & Conversational"
+  }, "Warm & Conversational"), React.createElement("option", {
+    value: "Sharp & Analytical"
+  }, "Sharp & Analytical")), React.createElement("textarea", {
     value: meta.carouselStyleNotes,
     onChange: function (ev) {
       setMeta(function (m) {
@@ -4010,7 +4010,7 @@ function App() {
         });
       });
     },
-    placeholder: "Describe the visual style you want\u2026",
+    placeholder: "Describe the tone you want\u2026",
     style: Object.assign({}, inp, {
       minHeight: 50,
       resize: "vertical"
