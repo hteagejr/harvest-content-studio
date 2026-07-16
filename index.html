@@ -116,16 +116,19 @@ function getAddressName(n) {
   })) return p[0] + " " + p[p.length - 1];
   return n.trim();
 }
-async function downloadCard(quote, speaker, photo, gold, purple) {
+async function downloadCard(quote, speaker, photo, gold, purple, quoteStyle, churchName) {
   gold = gold || GOLD;
   purple = purple || PURPLE;
+  var qs = quoteStyle || {};
+  var usePhoto = qs.mode === "photo" && photo;
+  var baseColor = qs.solidColor || purple;
   const W = 1080,
     H = 1350,
     cv = document.createElement("canvas");
   cv.width = W;
   cv.height = H;
   const cx = cv.getContext("2d");
-  if (photo) {
+  if (usePhoto) {
     const img = new Image();
     await new Promise(function (r) {
       img.onload = r;
@@ -140,19 +143,44 @@ async function downloadCard(quote, speaker, photo, gold, purple) {
     cx.fillRect(0, 0, W, H);
   } else {
     const g = cx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, purple);
+    g.addColorStop(0, baseColor);
     g.addColorStop(1, PURPLE_D);
     cx.fillStyle = g;
     cx.fillRect(0, 0, W, H);
+    // Textured mode: approximate the CSS texture with a simple repeating
+    // canvas pattern so exported PNGs aren't flat-solid when a texture
+    // preset is selected. Kept lightweight — no external images.
+    if (qs.mode === "textured") {
+      cx.fillStyle = "rgba(255,255,255,0.06)";
+      if (qs.texture === "geometric") {
+        for (let i = -H; i < W; i += 26) {
+          cx.fillRect(i, 0, 3, H * 1.6);
+        }
+      } else if (qs.texture === "linen") {
+        for (let i = 0; i < H; i += 6) cx.fillRect(0, i, W, 1);
+      } else {
+        for (let i = 0; i < W; i += 5) {
+          for (let j = 0; j < H; j += 5) cx.fillRect(i, j, 1, 1);
+        }
+      }
+    }
   }
-  cx.fillStyle = gold;
-  cx.font = "bold 160px Georgia,serif";
-  cx.textAlign = "left";
-  cx.fillText("\u201C", 70, 820);
+  var align = qs.align === "left" ? "left" : "center";
+  const textX = align === "left" ? 90 : W / 2;
+  if (qs.quoteMarks !== false) {
+    cx.fillStyle = gold;
+    cx.font = "bold 160px Georgia,serif";
+    cx.textAlign = "left";
+    cx.fillText("\u201C", 70, 820);
+  }
   cx.fillStyle = "#fff";
-  cx.font = "bold 54px Georgia,serif";
-  cx.textAlign = "center";
-  const words = quote.split(" ");
+  var fontStyle = QC_FONTS[qs.font] || QC_FONTS.bold;
+  var fontWeightNum = fontStyle.fontWeight >= 600 ? "bold" : "400";
+  var fontFace = qs.font === "elegant" ? "italic 54px Georgia,serif" : fontWeightNum + " 54px Arial,sans-serif";
+  cx.font = fontFace;
+  cx.textAlign = align;
+  const rawText = qs.quoteMarks === false ? quote : quote;
+  const words = rawText.split(" ");
   let line = "",
     lines = [];
   for (let i = 0; i < words.length; i++) {
@@ -165,12 +193,14 @@ async function downloadCard(quote, speaker, photo, gold, purple) {
   if (line) lines.push(line.trim());
   const lh = 74,
     sy = 920 - lines.length * lh / 2;
-  for (let i = 0; i < lines.length; i++) cx.fillText(lines[i], W / 2, sy + i * lh);
-  if (speaker) {
+  for (let i = 0; i < lines.length; i++) cx.fillText(lines[i], textX, sy + i * lh);
+  var nameLine = quoteCardNameLine(speaker, qs, churchName);
+  if (nameLine) {
     cx.fillStyle = gold;
-    cx.fillRect(W / 2 - 60, 1230, 120, 3);
+    cx.fillRect(align === "left" ? 90 : W / 2 - 60, 1230, 120, 3);
     cx.font = "400 38px Arial,sans-serif";
-    cx.fillText("— " + speaker, W / 2, 1290);
+    cx.textAlign = align;
+    cx.fillText("\u2014 " + nameLine, textX, 1290);
   }
   const a = document.createElement("a");
   a.download = "quote-card.png";
@@ -588,24 +618,65 @@ function Editable(props) {
     }, style)
   }, val);
 }
+// Feature 2 — Quote Card Design Controls.
+// Pure rendering helpers: no API involvement, safe fallbacks if style is missing.
+var QC_TEXTURES = {
+  grain: "radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)",
+  geometric: "repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0 2px, transparent 2px 14px)",
+  gradient: "linear-gradient(160deg, rgba(255,255,255,0.10), rgba(0,0,0,0.15))",
+  linen: "repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 3px)"
+};
+var QC_FONTS = {
+  bold: {
+    fontFamily: "Arial,Helvetica,sans-serif",
+    fontWeight: 700
+  },
+  elegant: {
+    fontFamily: "Georgia,serif",
+    fontWeight: 400,
+    fontStyle: "italic"
+  },
+  modern: {
+    fontFamily: "Arial,Helvetica,sans-serif",
+    fontWeight: 500
+  }
+};
+function quoteCardBg(qs, purple) {
+  var base = qs && qs.solidColor ? qs.solidColor : purple;
+  if (!qs || qs.mode === "solid") return base;
+  if (qs.mode === "textured") return QC_TEXTURES[qs.texture] + ", " + base;
+  return base; // photo mode handled separately (image element)
+}
+function quoteCardNameLine(speaker, qs, churchName) {
+  if (!speaker) return "";
+  if (qs && qs.nameDisplay === "name-title" && qs.speakerTitle) return qs.speakerTitle + " " + speaker;
+  if (qs && qs.nameDisplay === "name-church" && churchName) return speaker + ", " + churchName;
+  return speaker;
+}
 function QuoteCard(props) {
   var quote = props.quote,
     photo = props.photo,
     speaker = props.speaker,
     gold = props.gold || GOLD,
     purple = props.purple || PURPLE,
-    onDownload = props.onDownload;
+    onDownload = props.onDownload,
+    qs = props.quoteStyle || {},
+    churchName = props.churchName || "";
+  var usePhoto = qs.mode === "photo" && photo;
+  var fontStyle = QC_FONTS[qs.font] || QC_FONTS.bold;
+  var align = qs.align === "left" ? "left" : "center";
+  var nameLine = quoteCardNameLine(speaker, qs, churchName);
   return React.createElement("div", null, React.createElement("div", {
     style: {
       position: "relative",
       aspectRatio: "4/5",
       borderRadius: 12,
       overflow: "hidden",
-      background: photo ? "transparent" : purple,
+      background: usePhoto ? "transparent" : quoteCardBg(qs, purple),
       display: "flex",
       alignItems: "flex-end"
     }
-  }, photo && React.createElement("img", {
+  }, usePhoto && React.createElement("img", {
     src: photo,
     alt: "",
     style: {
@@ -619,25 +690,25 @@ function QuoteCard(props) {
     style: {
       position: "relative",
       width: "100%",
-      background: photo ? "linear-gradient(transparent," + purple + "F0 55%)" : "linear-gradient(transparent,rgba(0,0,0,0.4))",
-      padding: "2rem 1rem 1.25rem"
+      background: usePhoto ? "linear-gradient(transparent," + purple + "F0 55%)" : "linear-gradient(transparent,rgba(0,0,0,0.4))",
+      padding: "2rem 1rem 1.25rem",
+      textAlign: align
     }
   }, React.createElement("p", {
-    style: {
+    style: Object.assign({
       color: "#fff",
       fontSize: 14,
-      fontWeight: 500,
       lineHeight: 1.6,
       margin: "0 0 6px"
-    }
-  }, "\u201C" + quote + "\u201D"), speaker && React.createElement("p", {
+    }, fontStyle)
+  }, qs.quoteMarks === false ? quote : "\u201C" + quote + "\u201D"), nameLine && React.createElement("p", {
     style: {
       color: gold,
       fontSize: 12,
       margin: 0,
       fontWeight: 600
     }
-  }, "\u2014 " + speaker)), React.createElement("div", {
+  }, "\u2014 " + nameLine)), qs.quoteMarks !== false && React.createElement("div", {
     style: {
       position: "absolute",
       top: 10,
@@ -2271,6 +2342,26 @@ function App() {
   var photosState = useState([]),
     photos = photosState[0],
     setPhotos = photosState[1];
+  // Quote Card Design Controls — session-only (not saved to archive), pure
+  // client-side rendering, no API calls. Feature 2.
+  var quoteStyleState = useState({
+    mode: "solid",
+    // "solid" | "textured" | "photo"
+    solidColor: "",
+    // "" = brand purple default; else literal hex like #0D1B2A
+    texture: "grain",
+    // "grain" | "geometric" | "gradient" | "linen"
+    font: "bold",
+    // "bold" | "elegant" | "modern"
+    align: "center",
+    // "left" | "center"
+    quoteMarks: true,
+    nameDisplay: "name",
+    // "name" | "name-title" | "name-church"
+    speakerTitle: ""
+  }),
+    quoteStyle = quoteStyleState[0],
+    setQuoteStyle = quoteStyleState[1];
   var settingsState = useState({
     churchName: "Harvesters Olney",
     handle: "@harvestersolney",
@@ -3273,6 +3364,17 @@ function App() {
 
   // FIX 6: analyze() now staggers all calls 400ms apart to avoid rate-limit cascades.
   // Previously all 4 fired simultaneously, causing failures on the Anthropic API.
+  // Feature 2 — downloads every quote card as a PNG. Staggered by 400ms each
+  // so the browser doesn't treat it as a multi-download popup and block it.
+  function downloadAllQuoteCards() {
+    if (!coreData || !coreData.quotes || !coreData.quotes.length) return;
+    coreData.quotes.forEach(function (q, i) {
+      setTimeout(function () {
+        var qText = get("q-" + i, q.text);
+        downloadCard(qText, meta.speaker, photos[i % photos.length] || null, gold, purple, quoteStyle, settings.churchName);
+      }, i * 400);
+    });
+  }
   function analyze() {
     if (!input.trim()) {
       alert("Please paste your sermon transcript into the text box first, then click Analyze.");
@@ -4736,14 +4838,251 @@ function App() {
     onClick: function () {
       runFrench("quotes", coreData.quotes);
     }
-  }), React.createElement(RegenBtn, {
+  }), React.createElement("button", {
+    onClick: downloadAllQuoteCards,
+    style: {
+      fontSize: 12,
+      padding: "5px 10px",
+      borderRadius: 6,
+      border: "1px solid " + purple + "55",
+      background: "#fff",
+      color: purple,
+      cursor: "pointer"
+    }
+  }, "\u2B07\uFE0F Download all"), React.createElement(RegenBtn, {
     type: "quotes",
     loading: regenLoading,
     onRegen: function () {
       regen("quotes");
     },
     disabled: !canRegen
-  }))), !photos.length && React.createElement("div", {
+  }))), React.createElement("div", {
+    style: {
+      background: "#faf9fc",
+      border: "1px solid " + purple + "22",
+      borderRadius: 10,
+      padding: "12px 14px",
+      marginBottom: 14
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: "0 0 8px",
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: "0.04em"
+    }
+  }, "\uD83C\uDFA8 Quote card style"), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      marginBottom: 8,
+      flexWrap: "wrap"
+    }
+  }, ["solid", "textured", "photo"].map(function (m) {
+    return React.createElement("button", {
+      key: m,
+      onClick: function () {
+        setQuoteStyle(function (q) {
+          return Object.assign({}, q, {
+            mode: m
+          });
+        });
+      },
+      style: {
+        fontSize: 12,
+        padding: "5px 12px",
+        borderRadius: 20,
+        border: "1px solid " + (quoteStyle.mode === m ? purple : "#ddd"),
+        background: quoteStyle.mode === m ? purple : "#fff",
+        color: quoteStyle.mode === m ? "#fff" : "#555",
+        cursor: "pointer"
+      }
+    }, m === "solid" ? "Solid" : m === "textured" ? "Textured" : "Pastor photo");
+  })), quoteStyle.mode === "solid" && React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      marginBottom: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, [{
+    label: "Navy",
+    hex: "#0D1B2A"
+  }, {
+    label: "Teal",
+    hex: "#00B4D8"
+  }, {
+    label: "White",
+    hex: "#FFFFFF"
+  }].map(function (c) {
+    return React.createElement("button", {
+      key: c.hex,
+      onClick: function () {
+        setQuoteStyle(function (q) {
+          return Object.assign({}, q, {
+            solidColor: c.hex
+          });
+        });
+      },
+      title: c.label,
+      style: {
+        width: 26,
+        height: 26,
+        borderRadius: "50%",
+        border: "2px solid " + (quoteStyle.solidColor === c.hex ? purple : "#ddd"),
+        background: c.hex,
+        cursor: "pointer"
+      }
+    });
+  }), React.createElement("input", {
+    type: "text",
+    placeholder: "Custom hex e.g. #6B225B",
+    value: quoteStyle.solidColor,
+    onChange: function (ev) {
+      setQuoteStyle(function (q) {
+        return Object.assign({}, q, {
+          solidColor: ev.target.value
+        });
+      });
+    },
+    style: Object.assign({}, inp, {
+      maxWidth: 160,
+      fontSize: 12,
+      padding: "5px 8px"
+    })
+  })), quoteStyle.mode === "textured" && React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      marginBottom: 8,
+      flexWrap: "wrap"
+    }
+  }, ["grain", "geometric", "gradient", "linen"].map(function (t) {
+    return React.createElement("button", {
+      key: t,
+      onClick: function () {
+        setQuoteStyle(function (q) {
+          return Object.assign({}, q, {
+            texture: t
+          });
+        });
+      },
+      style: {
+        fontSize: 12,
+        padding: "5px 12px",
+        borderRadius: 20,
+        border: "1px solid " + (quoteStyle.texture === t ? purple : "#ddd"),
+        background: quoteStyle.texture === t ? purple : "#fff",
+        color: quoteStyle.texture === t ? "#fff" : "#555",
+        cursor: "pointer",
+        textTransform: "capitalize"
+      }
+    }, t);
+  })), quoteStyle.mode === "photo" && !photos.length && React.createElement("p", {
+    style: {
+      fontSize: 12,
+      color: "#888",
+      margin: "0 0 8px"
+    }
+  }, "\uD83D\uDCA1 Upload photos above \u2014 cards will cycle through them."), React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))",
+      gap: 8
+    }
+  }, React.createElement("select", {
+    value: quoteStyle.font,
+    onChange: function (ev) {
+      setQuoteStyle(function (q) {
+        return Object.assign({}, q, {
+          font: ev.target.value
+        });
+      });
+    },
+    style: Object.assign({}, inp, {
+      fontSize: 12,
+      padding: "5px 8px"
+    })
+  }, React.createElement("option", {
+    value: "bold"
+  }, "Font: Bold"), React.createElement("option", {
+    value: "elegant"
+  }, "Font: Elegant"), React.createElement("option", {
+    value: "modern"
+  }, "Font: Modern")), React.createElement("select", {
+    value: quoteStyle.align,
+    onChange: function (ev) {
+      setQuoteStyle(function (q) {
+        return Object.assign({}, q, {
+          align: ev.target.value
+        });
+      });
+    },
+    style: Object.assign({}, inp, {
+      fontSize: 12,
+      padding: "5px 8px"
+    })
+  }, React.createElement("option", {
+    value: "center"
+  }, "Align: Center"), React.createElement("option", {
+    value: "left"
+  }, "Align: Left")), React.createElement("select", {
+    value: quoteStyle.quoteMarks ? "on" : "off",
+    onChange: function (ev) {
+      setQuoteStyle(function (q) {
+        return Object.assign({}, q, {
+          quoteMarks: ev.target.value === "on"
+        });
+      });
+    },
+    style: Object.assign({}, inp, {
+      fontSize: 12,
+      padding: "5px 8px"
+    })
+  }, React.createElement("option", {
+    value: "on"
+  }, "Quote marks: On"), React.createElement("option", {
+    value: "off"
+  }, "Quote marks: Off")), React.createElement("select", {
+    value: quoteStyle.nameDisplay,
+    onChange: function (ev) {
+      setQuoteStyle(function (q) {
+        return Object.assign({}, q, {
+          nameDisplay: ev.target.value
+        });
+      });
+    },
+    style: Object.assign({}, inp, {
+      fontSize: 12,
+      padding: "5px 8px"
+    })
+  }, React.createElement("option", {
+    value: "name"
+  }, "Name only"), React.createElement("option", {
+    value: "name-title"
+  }, "Name + Title"), React.createElement("option", {
+    value: "name-church"
+  }, "Name + Church"))), quoteStyle.nameDisplay === "name-title" && React.createElement("input", {
+    type: "text",
+    placeholder: "Title, e.g. Bishop",
+    value: quoteStyle.speakerTitle,
+    onChange: function (ev) {
+      setQuoteStyle(function (q) {
+        return Object.assign({}, q, {
+          speakerTitle: ev.target.value
+        });
+      });
+    },
+    style: Object.assign({}, inp, {
+      marginTop: 8,
+      fontSize: 12,
+      padding: "5px 8px",
+      maxWidth: 200
+    })
+  })), !photos.length && React.createElement("div", {
     style: {
       background: GOLD_L,
       border: "1px solid " + gold + "55",
@@ -4770,8 +5109,10 @@ function App() {
       speaker: meta.speaker,
       gold: gold,
       purple: purple,
+      quoteStyle: quoteStyle,
+      churchName: settings.churchName,
       onDownload: function () {
-        downloadCard(qText, meta.speaker, photos[i % photos.length] || null, gold, purple);
+        downloadCard(qText, meta.speaker, photos[i % photos.length] || null, gold, purple, quoteStyle, settings.churchName);
       }
     }), React.createElement("div", {
       style: {
