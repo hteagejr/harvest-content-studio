@@ -307,6 +307,24 @@ function P_CHILDREN(txt, meta) {
   p += " SERMON: " + txt;
   return p;
 }
+function P_FAMILY(txt, meta) {
+  var sp = meta && meta.speaker || "the speaker";
+  var p = "Analyze this sermon by " + sp + " and create content for the whole family to do TOGETHER during the week \u2014 not a simplified kids' version, something every age in the house can share at the same table.";
+  p += " Keep it warm, practical, and short enough for a busy weeknight.";
+  p += " Return ONLY valid JSON: {\"familyMinistry\":{";
+  p += "\"verseOfWeek\":{\"reference\":\"...\",\"text\":\"...\",\"application\":\"one sentence on how the whole family can live this out this week\"},";
+  p += "\"familyStudy\":{\"title\":\"5-Day Family Bible Study title\",\"days\":[";
+  p += "{\"day\":1,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"a short passage a parent can read aloud in under a minute\",\"discussionQuestion\":\"one question every age can answer, phrased simply\",\"activity\":\"a quick shared activity or object lesson, under 5 minutes\",\"prayer\":\"a short prayer to say together\"},";
+  p += "{\"day\":2,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"},";
+  p += "{\"day\":3,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"},";
+  p += "{\"day\":4,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"},";
+  p += "{\"day\":5,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"}]},";
+  p += "\"dinnerTableQuestions\":[\"a quick no-prep question tied to this week's theme\",\"a second one\",\"a third one\"],";
+  p += "\"familyPrayer\":{\"shared\":\"one short prayer the whole family can pray together this week\",\"kids\":\"one simple line a young child could pray on their own\"}";
+  p += "}}";
+  p += " SERMON: " + txt;
+  return p;
+}
 function P_YOUTUBE(txt, meta, dur, s) {
   var sp = meta.speaker || "the speaker";
   var church = s && s.churchName || "Harvest Church";
@@ -381,6 +399,17 @@ var R = {
     p += "\"parentGuide\":{\"summary\":\"...\",\"questions\":[\"Q1\",\"Q2\",\"Q3\"]},";
     p += "\"memoryVerse\":{\"reference\":\"...\",\"text\":\"...\",\"activity\":\"...\"},";
     p += "\"prayerPoints\":[\"...\",\"...\",\"...\"]}}";
+    p += " SERMON: " + txt;
+    return p;
+  },
+  family: function (txt, meta) {
+    var sp = meta && meta.speaker || "the speaker";
+    var p = "Write fresh family content from this sermon by " + sp + " that the whole household can do together \u2014 not a kids-only version.";
+    p += " Return ONLY JSON: {\"familyMinistry\":{";
+    p += "\"verseOfWeek\":{\"reference\":\"...\",\"text\":\"...\",\"application\":\"...\"},";
+    p += "\"familyStudy\":{\"title\":\"...\",\"days\":[{\"day\":1,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"},{\"day\":2,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"},{\"day\":3,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"},{\"day\":4,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"},{\"day\":5,\"title\":\"...\",\"scripture\":\"...\",\"reading\":\"...\",\"discussionQuestion\":\"...\",\"activity\":\"...\",\"prayer\":\"...\"}]},";
+    p += "\"dinnerTableQuestions\":[\"Q1\",\"Q2\",\"Q3\"],";
+    p += "\"familyPrayer\":{\"shared\":\"...\",\"kids\":\"...\"}}}";
     p += " SERMON: " + txt;
     return p;
   },
@@ -541,6 +570,43 @@ function buildChildrenDirectorMessage(c, meta) {
     c.prayerPoints.forEach(function (p) {
       L.push("- " + p);
     });
+  }
+  return L.join("\n");
+}
+// Feature — formats Family content into one paste-ready message for
+// Family Ministry / Small Groups (same export pattern as Youth/Children).
+function buildFamilyDirectorMessage(f, meta) {
+  if (!f) return "";
+  var theme = meta && meta.title || "this week's message";
+  var L = ["Hi Family Ministry, here's this week's Family content from Sunday's message on " + theme + ":", ""];
+  if (f.verseOfWeek) {
+    L.push("VERSE OF THE WEEK: " + (f.verseOfWeek.reference || ""));
+    if (f.verseOfWeek.text) L.push(f.verseOfWeek.text);
+    if (f.verseOfWeek.application) L.push("Application: " + f.verseOfWeek.application);
+    L.push("");
+  }
+  if (f.familyStudy && f.familyStudy.days) {
+    L.push("5-DAY FAMILY BIBLE STUDY: " + (f.familyStudy.title || ""));
+    f.familyStudy.days.forEach(function (d) {
+      L.push("Day " + d.day + (d.title ? " - " + d.title : "") + (d.scripture ? " (" + d.scripture + ")" : ""));
+      if (d.reading) L.push(d.reading);
+      if (d.discussionQuestion) L.push("Discuss: " + d.discussionQuestion);
+      if (d.activity) L.push("Activity: " + d.activity);
+      if (d.prayer) L.push("Prayer: " + d.prayer);
+      L.push("");
+    });
+  }
+  if (f.dinnerTableQuestions && f.dinnerTableQuestions.length) {
+    L.push("DINNER TABLE QUESTIONS:");
+    f.dinnerTableQuestions.forEach(function (q, i) {
+      L.push(i + 1 + ". " + q);
+    });
+    L.push("");
+  }
+  if (f.familyPrayer) {
+    L.push("FAMILY PRAYER:");
+    if (f.familyPrayer.shared) L.push("Together: " + f.familyPrayer.shared);
+    if (f.familyPrayer.kids) L.push("For kids: " + f.familyPrayer.kids);
   }
   return L.join("\n");
 }
@@ -2661,6 +2727,16 @@ function App() {
   var errChildrenState = useState(false),
     errChildren = errChildrenState[0],
     setErrChildren = errChildrenState[1];
+  // Family Ministry content. Same on-demand pattern as Youth/Children.
+  var familyDataState = useState(null),
+    familyData = familyDataState[0],
+    setFamilyData = familyDataState[1];
+  var loadFamilyState = useState(false),
+    loadFamily = loadFamilyState[0],
+    setLoadFamily = loadFamilyState[1];
+  var errFamilyState = useState(false),
+    errFamily = errFamilyState[0],
+    setErrFamily = errFamilyState[1];
   var youtubeDataState = useState(null),
     youtubeData = youtubeDataState[0],
     setYoutubeData = youtubeDataState[1];
@@ -3315,6 +3391,37 @@ function App() {
     }
     setLoadChildren(false);
   }
+  async function runFamily(txt, attempt) {
+    attempt = attempt || 1;
+    setLoadFamily(true);
+    setErrFamily(false);
+    try {
+      var raw = await callAPI(P_FAMILY(txt, meta), 3500);
+      var p = parseJ(raw);
+      if (p && p.familyMinistry) {
+        setFamilyData(p.familyMinistry);
+      } else if (attempt < 2) {
+        setLoadFamily(false);
+        setTimeout(function () {
+          runFamily(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrFamily(true);
+      }
+    } catch (e) {
+      if (attempt < 2) {
+        setLoadFamily(false);
+        setTimeout(function () {
+          runFamily(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrFamily(true);
+      }
+    }
+    setLoadFamily(false);
+  }
   function restoreSession() {
     if (!savedSession) return;
     if (savedSession.meta) setMeta(savedSession.meta);
@@ -3762,7 +3869,7 @@ function App() {
           return Object.assign({}, prev, p);
         });else if (type === "devotionalGuide") setWrittenBData(function (prev) {
           return Object.assign({}, prev, p);
-        });else if (type === "leaders") setEmergingLeadersData(p.emergingLeaders || null);else if (type === "youth") setYouthData(p.youthMinistry || null);else if (type === "children") setChildrenData(p.childrenMinistry || null);else if (type === "hooks") setHooksData(p);else if (type === "youtube") setYoutubeData(p);else setContentData(function (prev) {
+        });else if (type === "leaders") setEmergingLeadersData(p.emergingLeaders || null);else if (type === "youth") setYouthData(p.youthMinistry || null);else if (type === "children") setChildrenData(p.childrenMinistry || null);else if (type === "family") setFamilyData(p.familyMinistry || null);else if (type === "hooks") setHooksData(p);else if (type === "youtube") setYoutubeData(p);else setContentData(function (prev) {
           return Object.assign({}, prev, p);
         });
         setEdits({});
@@ -8542,6 +8649,231 @@ function App() {
       }
     }, "\u2022 " + p);
   })))),
+  // ── Family Ministry (Studio) ────────────────────────────────────────────
+  coreData && React.createElement("div", {
+    style: {
+      marginTop: 24
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+      flexWrap: "wrap",
+      gap: 8
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: "linear-gradient(135deg," + gold + "," + GOLD + "CC)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 16
+    }
+  }, "\uD83D\uDC6A"), React.createElement("div", null, React.createElement("p", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      margin: 0,
+      color: PURPLE_D
+    }
+  }, "Family Ministry"), React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: 0
+    }
+  }, "Verse of the week, 5-day family study & more \u2014 for the whole household"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, loadFamily && React.createElement(Spinner, {
+    label: "Building family content\u2026"
+  }), familyData && React.createElement(CopyBtn, {
+    text: buildFamilyDirectorMessage(familyData, meta),
+    label: "Copy for Family Ministry"
+  }), familyData && React.createElement(StatusBadge, {
+    itemKey: "family",
+    status: getStatus("family"),
+    onUpdate: updateStatus
+  }), familyData && React.createElement("button", {
+    onClick: function () {
+      regen("family", 3500);
+    },
+    disabled: !!(regenLoading === "family" || !input.trim()),
+    style: {
+      fontSize: 12,
+      padding: "5px 12px",
+      borderRadius: 8,
+      border: "1px solid " + PURPLE + "33",
+      background: regenLoading === "family" ? PURPLE_L : "#fff",
+      color: PURPLE,
+      cursor: "pointer",
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, regenLoading === "family" ? "\u21BB Generating\u2026" : "\u21BB Regenerate"), !loadFamily && !familyData && !errFamily && React.createElement("button", {
+    onClick: function () {
+      runFamily(input);
+    },
+    disabled: !input.trim(),
+    style: {
+      fontSize: 12,
+      padding: "5px 14px",
+      borderRadius: 8,
+      border: "none",
+      background: gold,
+      color: PURPLE_D,
+      cursor: "pointer",
+      fontWeight: 600,
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, "Generate"))), errFamily && React.createElement(ErrBlock, {
+    label: "Family Ministry content failed \u2014 tap to retry.",
+    onRetry: function () {
+      runFamily(input);
+    }
+  }), familyData && React.createElement("div", null, familyData.verseOfWeek && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + purple,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: purple,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Verse of the Week" + (familyData.verseOfWeek.reference ? " \u2014 " + familyData.verseOfWeek.reference : "")), familyData.verseOfWeek.text && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: "0 0 6px",
+      fontStyle: "italic"
+    }
+  }, familyData.verseOfWeek.text), familyData.verseOfWeek.application && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: 0
+    }
+  }, "This week: " + familyData.verseOfWeek.application)), familyData.familyStudy && familyData.familyStudy.days && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + gold,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: PURPLE_D,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "5-Day Family Bible Study" + (familyData.familyStudy.title ? " \u2014 " + familyData.familyStudy.title : "")), familyData.familyStudy.days.map(function (d, i) {
+    return React.createElement("div", {
+      key: i,
+      style: {
+        marginBottom: 10
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 13,
+        fontWeight: 600,
+        margin: "0 0 4px"
+      }
+    }, "Day " + d.day + (d.title ? " \u2014 " + d.title : "")), d.scripture && React.createElement("p", {
+      style: {
+        fontSize: 11,
+        color: "#888",
+        margin: "0 0 4px"
+      }
+    }, d.scripture), d.reading && React.createElement("p", {
+      style: {
+        fontSize: 13,
+        margin: "0 0 4px",
+        lineHeight: 1.5
+      }
+    }, d.reading), d.discussionQuestion && React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#555",
+        margin: "0 0 2px",
+        fontStyle: "italic"
+      }
+    }, "Discuss: " + d.discussionQuestion), d.activity && React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#555",
+        margin: "0 0 2px"
+      }
+    }, "Activity: " + d.activity), d.prayer && React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#555",
+        margin: 0
+      }
+    }, "Prayer: " + d.prayer));
+  })), familyData.dinnerTableQuestions && familyData.dinnerTableQuestions.length > 0 && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + purple,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: purple,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Dinner Table Questions"), familyData.dinnerTableQuestions.map(function (q, i) {
+    return React.createElement("p", {
+      key: i,
+      style: {
+        fontSize: 13,
+        margin: "0 0 4px"
+      }
+    }, i + 1 + ". " + q);
+  })), familyData.familyPrayer && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + gold
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: PURPLE_D,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Family Prayer"), familyData.familyPrayer.shared && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: "0 0 6px"
+    }
+  }, "Together: " + familyData.familyPrayer.shared), familyData.familyPrayer.kids && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: 0
+    }
+  }, "For kids: " + familyData.familyPrayer.kids)))),
   // Congregation
   side === "congregation" && React.createElement("div", null, React.createElement("div", {
     style: {
@@ -9201,7 +9533,67 @@ function App() {
       color: "#333",
       margin: 0
     }
-  }, emergingLeadersData.content && emergingLeadersData.content.length > 280 ? emergingLeadersData.content.slice(0, 280).trim() + "\u2026" : emergingLeadersData.content)), (coreData.polls || []).slice(0, 1).map(function (p, i) {
+  }, emergingLeadersData.content && emergingLeadersData.content.length > 280 ? emergingLeadersData.content.slice(0, 280).trim() + "\u2026" : emergingLeadersData.content)), familyData && familyData.verseOfWeek && React.createElement(Card, {
+    style: {
+      borderLeft: "3px solid " + purple,
+      background: PURPLE_L
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      marginBottom: 10
+    }
+  }, React.createElement("span", {
+    style: {
+      fontSize: 18
+    }
+  }, "\uD83D\uDC6A"), React.createElement("p", {
+    style: {
+      fontSize: 13,
+      fontWeight: 700,
+      color: PURPLE_D,
+      margin: 0
+    }
+  }, "For the Family")), React.createElement("p", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: purple,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 4px"
+    }
+  }, "Verse of the Week" + (familyData.verseOfWeek.reference ? " \u2014 " + familyData.verseOfWeek.reference : "")), familyData.verseOfWeek.text && React.createElement("p", {
+    style: {
+      fontSize: 14,
+      fontStyle: "italic",
+      margin: "0 0 8px",
+      color: "#333",
+      lineHeight: 1.6
+    }
+  }, familyData.verseOfWeek.text), familyData.familyStudy && familyData.familyStudy.days && familyData.familyStudy.days[0] && React.createElement("div", {
+    style: {
+      background: "#fff",
+      borderRadius: 8,
+      padding: "10px 12px"
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: "#999",
+      margin: "0 0 4px",
+      textTransform: "uppercase"
+    }
+  }, "This week's family study \u2014 Day 1"), React.createElement("p", {
+    style: {
+      fontSize: 13,
+      margin: 0,
+      color: "#444"
+    }
+  }, familyData.familyStudy.days[0].title || familyData.familyStudy.title))), (coreData.polls || []).slice(0, 1).map(function (p, i) {
     return React.createElement(Card, {
       key: i
     }, React.createElement("p", {
