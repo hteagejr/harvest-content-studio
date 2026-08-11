@@ -236,7 +236,8 @@ function carouselStyleCtx(meta) {
 }
 function P_CORE_A(txt, meta) {
   var seriesCtx = meta && meta.seriesName ? ' This sermon is part of a series called "' + meta.seriesName + '" (Part ' + (meta.seriesNumber || '?') + '). Generate a seriesTheme capturing the series arc.' : '';
-  return 'Analyze this sermon.' + seriesCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Point 1","Point 2","Point 3","Point 4"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram"},{"text":"Powerful quote 2","platform":"TikTok"},{"text":"Powerful quote 3","platform":"Facebook"},{"text":"Powerful quote 4","platform":"Instagram"},{"text":"Powerful quote 5","platform":"Facebook"},{"text":"Powerful quote 6","platform":"TikTok"},{"text":"Powerful quote 7","platform":"Instagram"}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
+  var takeawayCtx = ' Identify the 3 most important, memorable truths from this sermon \u2014 the core takeaways any listener should walk away with, regardless of role or ministry area. Each should be a single, complete, specific sentence grounded in what was actually taught \u2014 not a vague summary fragment.';
+  return 'Analyze this sermon.' + seriesCtx + takeawayCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Core takeaway 1","Core takeaway 2","Core takeaway 3"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram"},{"text":"Powerful quote 2","platform":"TikTok"},{"text":"Powerful quote 3","platform":"Facebook"},{"text":"Powerful quote 4","platform":"Instagram"},{"text":"Powerful quote 5","platform":"Facebook"},{"text":"Powerful quote 6","platform":"TikTok"},{"text":"Powerful quote 7","platform":"Instagram"}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
 }
 function P_CORE_B(txt, meta) {
   var t = meta.title || "Sermon";
@@ -267,11 +268,20 @@ function P_LEADERS(txt, meta) {
   p += " as if " + sp + " is speaking directly to young leaders from this message.";
   p += " Voice: the speaker personally addressing young leaders.";
   p += " Include scripture. Warm mentor tone. 220-350 words.";
+  p += " OPENING: Do not use a fixed or formulaic opening line, and do not default to always addressing the reader as \"young leader\" in the first sentence. Choose whichever entry point is most naturally supported by what is actually in THIS transcript: (1) STORY \u2014 open with a specific, nameable detail the speaker actually said (a story, illustration, turn of phrase, or moment) \u2014 name the real thing, never a vague gesture like \"that story\" or \"what you shared\"; (2) SCRIPTURE \u2014 open with the specific verse the message centered on; (3) TENSION \u2014 open by naming the real tension or paradox the sermon wrestled with; (4) QUESTION \u2014 open with the probing question the sermon itself raised or implied. If the transcript doesn't contain a strong enough specific illustration to reference by name, do NOT force the story hook \u2014 use scripture, tension, or question instead. Every opening must be grounded in something specific and actually stated in this transcript, never a generic reference to an unnamed moment.";
   p += " If no applicable leadership principle, set applicable to false.";
   p += " Return ONLY valid JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"6-8 word principle\",";
-  p += "\"content\":\"220-350 word first-person message\",\"scripture\":\"ref or null\",";
-  p += "\"keyPoints\":[\"Takeaway 1\",\"Takeaway 2\",\"Takeaway 3\"]}}. If not applicable: {\"emergingLeaders\":{\"applicable\":false}}";
+  p += "\"content\":\"220-350 word first-person message\",\"scripture\":\"ref or null\"}}. If not applicable: {\"emergingLeaders\":{\"applicable\":false}}";
   p += " SERMON: " + txt;
+  return p;
+}
+function P_LEADERS_TAKEAWAYS(keyPoints, meta) {
+  var sp = getAddressName(meta.speaker) || "the speaker";
+  var kp = JSON.stringify(keyPoints || []);
+  var p = "Here are this week's 3 core sermon takeaways, written for a general audience: " + kp + ".";
+  p += " Reframe each of these three \u2014 same order, same underlying truth \u2014 specifically for young leaders: what each one means for someone who leads others.";
+  p += " Do not invent new ideas or details beyond what's in the original takeaway. Each should be one sentence, warm mentor tone, as if " + sp + " is speaking directly to the leader.";
+  p += " Return ONLY valid JSON: {\"leaderTakeaways\":[\"...\",\"...\",\"...\"]}";
   return p;
 }
 function P_YOUTH(txt, meta) {
@@ -326,12 +336,31 @@ function P_FAMILY(txt, meta) {
   p += " SERMON: " + txt;
   return p;
 }
+function P_PRODUCTCOPY(txt, meta, resourceName, giftAmount) {
+  var sp = meta && meta.speaker || "the speaker";
+  var res = resourceName && resourceName.trim() ? resourceName.trim() : "a resource connected to this message";
+  var giftLine = giftAmount && giftAmount.trim() ? ' Suggested gift/ask amount: "' + giftAmount.trim() + '" — weave this naturally into the callToAction, do not force it if it reads awkwardly.' : ' No specific gift amount was given — write the callToAction as a general request ("for a gift of any amount") rather than inventing a dollar figure.';
+  var p = 'Write broadcast-style resource offer copy for "' + res + '", based on this sermon by ' + sp + '.' + giftLine;
+  p += ' Model the tone and structure on ministry broadcast offers: open with a relatable question or false belief many people carry, reframe it with the truth from this message, name what the resource helps someone discover or experience, then close with a clear, warm call to action.';
+  p += ' Ground every claim in what this sermon actually teaches — do not invent theology or promises the message does not support. Keep it warm and personal, not high-pressure or manipulative.';
+  p += ' Return ONLY valid JSON:\n{"productCopy":{"hookQuestion":"1-2 sentence relatable question or false belief someone might carry, tied to this message","reframe":"2-4 sentence reframe revealing the truth from this sermon, building toward what the resource offers","resourceDelivers":"1-2 sentences on what this specific resource helps the listener discover, understand, or experience","callToAction":"2-3 sentence warm, direct ask — invite them to request/get the resource, referencing the gift amount only if one was given","shortVersion":"a condensed 3-4 sentence version of the full pitch, suitable for a shorter broadcast moment or social caption"}}';
+  p += ' SERMON: ' + txt;
+  return p;
+}
 function P_YOUTUBE(txt, meta, dur, s) {
   var sp = meta.speaker || "the speaker";
   var church = s && s.churchName || "Harvest Church";
   var youtube = s && s.youtubeLink ? "YouTube: " + s.youtubeLink : "";
   var durNote = dur ? " Video duration: " + dur + "." : " Estimate chapter timestamps based on sermon pacing.";
-  return 'Generate a complete YouTube upload package for this sermon by ' + sp + ' at ' + church + '.' + durNote + ' Return ONLY valid JSON:\n{"titles":["SEO-optimized title with keyword","Question-format title that creates curiosity","Promise-format title"],"hook":"First 2 lines of description visible before Show More — must hook immediately (max 160 chars)","descriptionBody":"Full description body 500-800 words: expanded summary paragraph, What you will discover section with 3-5 bullet points using bullet character, about the speaker paragraph, about the church paragraph, subscribe and follow CTA lines, ' + youtube + '","chapters":[{"time":"0:00","title":"Introduction"},{"time":"EST","title":"Section title"}],"tags":["tag1","tag2","tag3","tag4","tag5","tag6","tag7","tag8","tag9","tag10","tag11","tag12","tag13","tag14","tag15"],"thumbnailConcepts":["Short punchy text concept 1 (under 6 words)","Concept 2","Concept 3"]}\nSERMON: ' + txt;
+  var p = 'Generate a complete broadcast/rebroadcast upload package for this sermon by ' + sp + ' at ' + church + '.' + durNote;
+  p += ' This is for a full-length sermon broadcast (YouTube, Facebook, church website), not a short clip.';
+  p += ' TITLES: write 6 distinct title options, each written to grab attention and make someone want to watch/listen right now — vary the angle across curiosity, a direct promise, a question, a bold statement, a relatable pain point, and one clean SEO-forward option with a natural keyword. No two titles should use the same structure.';
+  p += ' DESCRIPTION: the opening paragraph of the description must directly support and reinforce whichever title is most likely to be used — do not write a generic summary that ignores the titles.';
+  p += ' BROADCAST OPEN: this is the most important part. Generate 2-3 candidate broadcast opens, each pairing a Message Hook with a Transition Hook, so a producer can pick the strongest combination.';
+  p += ' The messageHook MUST be a verbatim excerpt copied directly from the SERMON text below — real words the speaker actually said, not a paraphrase or invention. Pick a moment with emotional or rhetorical punch that works read completely out of context, 3-6 sentences long. If the transcript does not contain a strong enough standalone excerpt for a given candidate, do not fabricate one — return fewer broadcastOpens entries instead.';
+  p += ' The transitionHook is newly written connective copy that bridges from that raw excerpt into what today\'s message is about — conversational, direct, names the real tension the message addresses, 2-4 sentences, ends by naming or gesturing at the topic/theme so the viewer knows what they are about to watch.';
+  p += ' Return ONLY valid JSON:\n{"titles":["Curiosity angle","Bold promise angle","Question angle","Bold statement angle","Relatable pain-point angle","Clean SEO-forward angle with natural keyword"],"broadcastOpens":[{"messageHook":"verbatim excerpt from the transcript, 3-6 sentences","transitionHook":"newly written bridge into the message, 2-4 sentences"},{"messageHook":"a second, different verbatim excerpt","transitionHook":"its matching bridge"}],"hook":"First 2 lines of description visible before Show More — must hook immediately (max 160 chars)","descriptionBody":"Full description body 500-800 words: expanded summary paragraph that supports the lead title, What you will discover section with 3-5 bullet points using bullet character, about the speaker paragraph, about the church paragraph, subscribe and follow CTA lines, ' + youtube + '","chapters":[{"time":"0:00","title":"Introduction"},{"time":"EST","title":"Section title"}],"tags":["tag1","tag2","tag3","tag4","tag5","tag6","tag7","tag8","tag9","tag10","tag11","tag12","tag13","tag14","tag15"],"thumbnailConcepts":["Short punchy text concept 1 (under 6 words)","Concept 2","Concept 3"]}\nSERMON: ' + txt;
+  return p;
 }
 function P_HOOKS(txt, meta) {
   var sp = (meta && meta.speaker) ? meta.speaker : 'the speaker';
@@ -362,7 +391,7 @@ var R = {
   },
   youtube: function (txt, meta) {
     var sp = meta && meta.speaker || "the speaker";
-    return 'Generate a fresh YouTube upload package for this sermon by ' + sp + '. Return ONLY valid JSON: {"titles":["Title 1","Title 2","Title 3"],"hook":"Hook line","descriptionBody":"Full description","chapters":[{"time":"0:00","title":"Intro"}],"tags":["tag1","tag2"],"thumbnailConcepts":["Concept 1","Concept 2","Concept 3"]}\nSERMON: ' + txt;
+    return 'Generate a fresh broadcast upload package for this sermon by ' + sp + '. Write 6 fresh title options with varied angles (curiosity, promise, question, bold statement, pain point, SEO-forward). Generate 2-3 fresh broadcastOpens — each messageHook MUST be a verbatim excerpt copied directly from the SERMON text (never paraphrased or invented; return fewer entries if the transcript lacks a strong enough excerpt), paired with a newly written transitionHook that bridges into the message topic. Return ONLY valid JSON: {"titles":["T1","T2","T3","T4","T5","T6"],"broadcastOpens":[{"messageHook":"verbatim excerpt","transitionHook":"bridge copy"},{"messageHook":"verbatim excerpt","transitionHook":"bridge copy"}],"hook":"Hook line","descriptionBody":"Full description supporting the lead title","chapters":[{"time":"0:00","title":"Intro"}],"tags":["tag1","tag2"],"thumbnailConcepts":["Concept 1","Concept 2","Concept 3"]}\nSERMON: ' + txt;
   },
   hooks: function (txt) {
     return 'Generate fresh scroll-stopping content hooks for this sermon. Return ONLY valid JSON: {"messageHooks":[{"hook":"...","type":"curiosity","platform":"..."},{"hook":"...","type":"problem","platform":"..."},{"hook":"...","type":"challenge","platform":"..."},{"hook":"...","type":"promise","platform":"..."},{"hook":"...","type":"question","platform":"..."}],"visualHooks":[{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."}],"audioHooks":[{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."}],"excerptSetups":[{"title":"...","setup":"..."}]}\nSERMON: ' + txt;
@@ -373,8 +402,9 @@ var R = {
     var p = "Write a fresh For Emerging Leaders section from this sermon by " + fullName + ".";
     p += " First-person voice as if " + sp + " speaks directly to young leaders.";
     p += " Mentor tone, 220-350 words.";
+    p += " OPENING: Do not use a fixed or formulaic opening line, and don't default to always addressing the reader as \"young leader\" in the first sentence. Pick whichever entry point this transcript actually supports: a specific, nameable story/illustration/moment the speaker used (name the real thing, never a vague gesture at an unnamed moment); the specific scripture the message centered on; the real tension or paradox the sermon wrestled with; or the probing question the sermon itself raised. Ground it in something specific and actually stated in this transcript.";
     p += " Return ONLY JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"...\",";
-    p += "\"content\":\"...\",\"scripture\":\"...\",\"keyPoints\":[\"...\",\"...\",\"...\"]}}";
+    p += "\"content\":\"...\",\"scripture\":\"...\"}}";
     p += " SERMON: " + txt;
     return p;
   },
@@ -2708,6 +2738,9 @@ function App() {
   var errLeadersState = useState(false),
     errLeaders = errLeadersState[0],
     setErrLeaders = errLeadersState[1];
+  var loadLeaderTakeawaysState = useState(false),
+    loadLeaderTakeaways = loadLeaderTakeawaysState[0],
+    setLoadLeaderTakeaways = loadLeaderTakeawaysState[1];
   // Feature 6 — Youth Ministry content. On-demand only (no auto-fire) to
   // avoid adding a 5th concurrent call during Analyze / rate-limit risk.
   var youthDataState = useState(null),
@@ -2751,6 +2784,23 @@ function App() {
   var videoDurState = useState(""),
     videoDur = videoDurState[0],
     setVideoDur = videoDurState[1];
+  // Resource/Product Copy — Network tier feature, ships to everyone during pilot.
+  // Same on-demand pattern as Family/Youth/Children Ministry.
+  var productCopyDataState = useState(null),
+    productCopyData = productCopyDataState[0],
+    setProductCopyData = productCopyDataState[1];
+  var loadProductCopyState = useState(false),
+    loadProductCopy = loadProductCopyState[0],
+    setLoadProductCopy = loadProductCopyState[1];
+  var errProductCopyState = useState(false),
+    errProductCopy = errProductCopyState[0],
+    setErrProductCopy = errProductCopyState[1];
+  var resourceNameState = useState(""),
+    resourceName = resourceNameState[0],
+    setResourceName = resourceNameState[1];
+  var giftAmountState = useState(""),
+    giftAmount = giftAmountState[0],
+    setGiftAmount = giftAmountState[1];
   var hooksDataState = useState(null),
     hooksData = hooksDataState[0],
     setHooksData = hooksDataState[1];
@@ -2961,6 +3011,18 @@ function App() {
     } catch (e) {}
     setFrenchLoading(null);
   }
+
+  // Fires the leader-specific reframe of the shared Key Takeaways once both
+  // are available. Waits on real state rather than a fixed timer, since
+  // coreData and emergingLeadersData resolve independently and at
+  // unpredictable times relative to each other.
+  useEffect(function () {
+    if (!emergingLeadersData || !emergingLeadersData.applicable) return;
+    if ((emergingLeadersData.keyPoints || []).length) return;
+    if (!coreData || !(coreData.keyPoints || []).length) return;
+    if (loadLeaderTakeaways) return;
+    runLeaderTakeaways(coreData.keyPoints);
+  }, [emergingLeadersData, coreData]);
 
   // On-demand written content: generates when user navigates to Written tab/sub-tabs.
   // This prevents rate-limit failures from firing 5 API calls simultaneously on Analyze.
@@ -3331,6 +3393,39 @@ function App() {
     }
     setLoadLeaders(false);
   }
+  // Reframes the shared Key Takeaways (coreData.keyPoints) specifically for
+  // young leaders. Fires only once both the main Emerging Leaders message
+  // and the shared takeaways are available — see useEffect below.
+  async function runLeaderTakeaways(keyPoints, attempt) {
+    attempt = attempt || 1;
+    setLoadLeaderTakeaways(true);
+    try {
+      var raw = await callAPI(P_LEADERS_TAKEAWAYS(keyPoints, meta), 1200);
+      var p = parseJ(raw);
+      if (p && p.leaderTakeaways && p.leaderTakeaways.length) {
+        setEmergingLeadersData(function (prev) {
+          return prev ? Object.assign({}, prev, {
+            keyPoints: p.leaderTakeaways
+          }) : prev;
+        });
+      } else if (attempt < 2) {
+        setLoadLeaderTakeaways(false);
+        setTimeout(function () {
+          runLeaderTakeaways(keyPoints, 2);
+        }, 1500);
+        return;
+      }
+    } catch (e) {
+      if (attempt < 2) {
+        setLoadLeaderTakeaways(false);
+        setTimeout(function () {
+          runLeaderTakeaways(keyPoints, 2);
+        }, 1500);
+        return;
+      }
+    }
+    setLoadLeaderTakeaways(false);
+  }
   async function runYouth(txt, attempt) {
     attempt = attempt || 1;
     setLoadYouth(true);
@@ -3423,6 +3518,37 @@ function App() {
       }
     }
     setLoadFamily(false);
+  }
+  async function runProductCopy(txt, attempt) {
+    attempt = attempt || 1;
+    setLoadProductCopy(true);
+    setErrProductCopy(false);
+    try {
+      var raw = await callAPI(P_PRODUCTCOPY(txt, meta, resourceName, giftAmount), 3500);
+      var p = parseJ(raw);
+      if (p && p.productCopy) {
+        setProductCopyData(p.productCopy);
+      } else if (attempt < 2) {
+        setLoadProductCopy(false);
+        setTimeout(function () {
+          runProductCopy(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrProductCopy(true);
+      }
+    } catch (e) {
+      if (attempt < 2) {
+        setLoadProductCopy(false);
+        setTimeout(function () {
+          runProductCopy(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrProductCopy(true);
+      }
+    }
+    setLoadProductCopy(false);
   }
   function restoreSession() {
     if (!savedSession) return;
@@ -3836,6 +3962,7 @@ function App() {
     });
     setEmergingLeadersData(null);
     setErrLeaders(false);
+    setLoadLeaderTakeaways(false);
     setYouthData(null);
     setErrYouth(false);
     setChildrenData(null);
@@ -3845,6 +3972,10 @@ function App() {
     setYoutubeData(null);
     setErrYT(false);
     setVideoDur("");
+    setProductCopyData(null);
+    setErrProductCopy(false);
+    setResourceName("");
+    setGiftAmount("");
     runCoreA(txt); // t = 0ms
     setTimeout(function () {
       runCoreB(txt);
@@ -5045,24 +5176,49 @@ function App() {
       margin: "0 0 12px",
       lineHeight: 1.6
     }
-  }, coreData.summary), React.createElement("div", {
+  }, coreData.summary)), coreData && (coreData.keyPoints || []).length > 0 && React.createElement(Card, {
     style: {
-      display: "flex",
-      gap: 5,
-      flexWrap: "wrap"
+      borderLeft: "4px solid " + gold
     }
-  }, (coreData.keyPoints || []).map(function (pt, i) {
-    return React.createElement("span", {
+  }, React.createElement("p", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: "#999",
+      margin: "0 0 10px",
+      textTransform: "uppercase",
+      letterSpacing: "0.06em"
+    }
+  }, "Key Takeaways"), (coreData.keyPoints || []).map(function (pt, i) {
+    return React.createElement("div", {
       key: i,
       style: {
-        fontSize: 12,
-        padding: "3px 10px",
-        borderRadius: 16,
-        background: "rgba(255,255,255,0.12)",
-        color: "rgba(255,255,255,0.9)"
+        display: "flex",
+        gap: 10,
+        marginBottom: 8
       }
-    }, pt);
-  }))), anyData && React.createElement("div", null,
+    }, React.createElement("div", {
+      style: {
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        background: gold,
+        color: PURPLE_D,
+        fontSize: 11,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 700,
+        flexShrink: 0
+      }
+    }, i + 1), React.createElement("p", {
+      style: {
+        fontSize: 14,
+        margin: 0,
+        lineHeight: 1.6
+      }
+    }, pt));
+  })), anyData && React.createElement("div", null,
   // Tabs + download
   React.createElement("div", {
     style: {
@@ -7749,7 +7905,96 @@ function App() {
     onRetry: function () {
       runYoutube(input);
     }
-  }), youtubeData && React.createElement("div", null, React.createElement(Card, {
+  }), youtubeData && React.createElement("div", null, (youtubeData.broadcastOpens || []).length > 0 && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + PURPLE_D,
+      background: "#FAFAFF",
+      marginBottom: 14
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: PURPLE_D,
+      margin: "0 0 4px",
+      textTransform: "uppercase",
+      letterSpacing: "0.05em"
+    }
+  }, "Broadcast Open"), React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: "0 0 12px"
+    }
+  }, "Start here \u2014 pick the strongest opening for the rebroadcast"), (youtubeData.broadcastOpens || []).map(function (bo, i) {
+    return React.createElement("div", {
+      key: i,
+      style: {
+        borderRadius: 10,
+        border: "1px solid #E5E5F0",
+        background: "#fff",
+        padding: "12px 14px",
+        marginBottom: i < youtubeData.broadcastOpens.length - 1 ? 10 : 0
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#AAA",
+        margin: "0 0 8px",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
+      }
+    }, "Option " + (i + 1)), bo.messageHook && React.createElement("div", {
+      style: {
+        marginBottom: 10
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 10,
+        fontWeight: 600,
+        color: PURPLE,
+        margin: "0 0 4px",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
+      }
+    }, "Message Hook \u2014 verbatim from transcript"), React.createElement("p", {
+      style: {
+        fontSize: 14,
+        lineHeight: 1.7,
+        margin: "0 0 6px",
+        fontStyle: "italic",
+        color: "#333"
+      }
+    }, "\u201C", bo.messageHook, "\u201D"), React.createElement(CopyBtn, {
+      text: bo.messageHook
+    })), bo.transitionHook && React.createElement("div", null, React.createElement("p", {
+      style: {
+        fontSize: 10,
+        fontWeight: 600,
+        color: gold,
+        margin: "0 0 4px",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
+      }
+    }, "Transition Hook"), React.createElement("p", {
+      style: {
+        fontSize: 14,
+        lineHeight: 1.7,
+        margin: "0 0 6px",
+        color: "#333"
+      }
+    }, bo.transitionHook), React.createElement(CopyBtn, {
+      text: bo.transitionHook
+    })), (bo.messageHook || bo.transitionHook) && React.createElement("div", {
+      style: {
+        marginTop: 8
+      }
+    }, React.createElement(CopyBtn, {
+      label: "Copy full open",
+      text: (bo.messageHook || "") + "\n\n" + (bo.transitionHook || "")
+    })));
+  })), React.createElement(Card, {
     style: {
       borderLeft: "4px solid #FF0000"
     }
@@ -8876,6 +9121,215 @@ function App() {
       margin: 0
     }
   }, "For kids: " + familyData.familyPrayer.kids)))),
+  // ── Resource / Product Copy (Studio) ─────────────────────────────────────
+  // Network-tier feature; ships to everyone during the Harvest Olney pilot,
+  // tier-gate to be enforced once Supabase/auth lands (Phase 3).
+  coreData && React.createElement("div", {
+    style: {
+      marginTop: 24
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+      flexWrap: "wrap",
+      gap: 8
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: "linear-gradient(135deg," + purple + "," + PURPLE_D + ")",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 16
+    }
+  }, "\uD83C\uDF81"), React.createElement("div", null, React.createElement("p", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      margin: 0,
+      color: PURPLE_D
+    }
+  }, "Resource / Product Copy"), React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: 0
+    }
+  }, "Broadcast-style offer copy for a book, study guide, or resource tied to this message"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, loadProductCopy && React.createElement(Spinner, {
+    label: "Writing offer copy\u2026"
+  }), productCopyData && React.createElement("button", {
+    onClick: function () {
+      runProductCopy(input);
+    },
+    disabled: !!(loadProductCopy || !input.trim()),
+    style: {
+      fontSize: 12,
+      padding: "5px 12px",
+      borderRadius: 8,
+      border: "1px solid " + PURPLE + "33",
+      background: "#fff",
+      color: PURPLE,
+      cursor: "pointer",
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, "\u21BB Regenerate"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap",
+      marginBottom: 12
+    }
+  }, React.createElement("input", {
+    value: resourceName,
+    onChange: function (e) {
+      setResourceName(e.target.value);
+    },
+    placeholder: "Resource name (e.g. \u201CUnfailing Love\u201D study guide)",
+    style: {
+      flex: "1 1 220px",
+      padding: "6px 10px",
+      borderRadius: 8,
+      border: "1px solid #DDD",
+      fontSize: 12
+    }
+  }), React.createElement("input", {
+    value: giftAmount,
+    onChange: function (e) {
+      setGiftAmount(e.target.value);
+    },
+    placeholder: "Suggested gift (optional, e.g. $75)",
+    style: {
+      width: 190,
+      padding: "6px 10px",
+      borderRadius: 8,
+      border: "1px solid #DDD",
+      fontSize: 12
+    }
+  }), !loadProductCopy && !productCopyData && !errProductCopy && React.createElement("button", {
+    onClick: function () {
+      runProductCopy(input);
+    },
+    disabled: !input.trim(),
+    style: {
+      fontSize: 12,
+      padding: "5px 14px",
+      borderRadius: 8,
+      border: "none",
+      background: purple,
+      color: "#fff",
+      cursor: "pointer",
+      fontWeight: 600,
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, "Generate")), errProductCopy && React.createElement(ErrBlock, {
+    label: "Resource copy failed \u2014 tap to retry.",
+    onRetry: function () {
+      runProductCopy(input);
+    }
+  }), productCopyData && React.createElement("div", null, React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + purple,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: purple,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Hook Question"), productCopyData.hookQuestion && React.createElement("p", {
+    style: {
+      fontSize: 14,
+      lineHeight: 1.7,
+      margin: "0 0 8px"
+    }
+  }, productCopyData.hookQuestion), productCopyData.reframe && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.7,
+      margin: "0 0 8px",
+      color: "#444"
+    }
+  }, productCopyData.reframe), productCopyData.resourceDelivers && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.7,
+      margin: 0,
+      color: "#444",
+      fontStyle: "italic"
+    }
+  }, productCopyData.resourceDelivers), React.createElement(CopyBtn, {
+    label: "Copy hook + reframe",
+    text: [productCopyData.hookQuestion, productCopyData.reframe, productCopyData.resourceDelivers].filter(Boolean).join("\n\n")
+  })), productCopyData.callToAction && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + gold,
+      background: "#FFFBF0",
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: PURPLE_D,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Call to Action"), React.createElement("p", {
+    style: {
+      fontSize: 14,
+      lineHeight: 1.7,
+      margin: "0 0 8px",
+      fontWeight: 600
+    }
+  }, productCopyData.callToAction), React.createElement(CopyBtn, {
+    text: productCopyData.callToAction
+  })), productCopyData.shortVersion && React.createElement(Card, null, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#999",
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Short Version \u2014 for social or a quick broadcast moment"), React.createElement("p", {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.7,
+      margin: "0 0 8px",
+      color: "#444"
+    }
+  }, productCopyData.shortVersion), React.createElement(CopyBtn, {
+    text: productCopyData.shortVersion
+  })), React.createElement(CopyBtn, {
+    label: "Copy full offer copy",
+    text: [productCopyData.hookQuestion, productCopyData.reframe, productCopyData.resourceDelivers, productCopyData.callToAction].filter(Boolean).join("\n\n")
+  }))),
   // Congregation
   side === "congregation" && React.createElement("div", null, React.createElement("div", {
     style: {
