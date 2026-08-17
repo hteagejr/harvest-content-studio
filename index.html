@@ -207,116 +207,6 @@ async function downloadCard(quote, speaker, photo, gold, purple, quoteStyle, chu
   a.href = cv.toDataURL("image/png");
   a.click();
 }
-async function downloadTeachingCard(card, speaker, photo, gold, purple, quoteStyle, churchName) {
-  gold = gold || GOLD;
-  purple = purple || PURPLE;
-  card = card || {};
-  var qs = quoteStyle || {};
-  var usePhoto = qs.mode === "photo" && photo;
-  var baseColor = qs.solidColor || purple;
-  const W = 1080,
-    H = 1350,
-    cv = document.createElement("canvas");
-  cv.width = W;
-  cv.height = H;
-  const cx = cv.getContext("2d");
-  if (usePhoto) {
-    const img = new Image();
-    await new Promise(function (r) {
-      img.onload = r;
-      img.onerror = r;
-      img.src = photo;
-    });
-    cx.drawImage(img, 0, 0, W, H);
-    const g = cx.createLinearGradient(0, H * 0.25, 0, H);
-    g.addColorStop(0, "rgba(0,0,0,0)");
-    g.addColorStop(1, purple + "F5");
-    cx.fillStyle = g;
-    cx.fillRect(0, 0, W, H);
-  } else {
-    const g = cx.createLinearGradient(0, 0, 0, H);
-    g.addColorStop(0, baseColor);
-    g.addColorStop(1, PURPLE_D);
-    cx.fillStyle = g;
-    cx.fillRect(0, 0, W, H);
-    if (qs.mode === "textured") {
-      cx.fillStyle = "rgba(255,255,255,0.06)";
-      if (qs.texture === "geometric") {
-        for (let i = -H; i < W; i += 26) {
-          cx.fillRect(i, 0, 3, H * 1.6);
-        }
-      } else if (qs.texture === "linen") {
-        for (let i = 0; i < H; i += 6) cx.fillRect(0, i, W, 1);
-      } else {
-        for (let i = 0; i < W; i += 5) {
-          for (let j = 0; j < H; j += 5) cx.fillRect(i, j, 1, 1);
-        }
-      }
-    }
-  }
-  var align = qs.align === "left" ? "left" : "center";
-  const textX = align === "left" ? 80 : W / 2;
-  const maxW = align === "left" ? 920 : 880;
-
-  // Headline — [HL] markers stripped for canvas (no per-word color here,
-  // matching the simplified export approach already used for quote cards).
-  var headlinePlain = (card.headline || "").replace(/\[HL\]|\[\/HL\]/g, "");
-  cx.fillStyle = "#fff";
-  cx.font = "bold 54px Arial,sans-serif";
-  cx.textAlign = align;
-  var hWords = headlinePlain.split(" ");
-  var hLine = "",
-    hLines = [];
-  for (let i = 0; i < hWords.length; i++) {
-    const t = hLine + hWords[i] + " ";
-    if (cx.measureText(t).width > maxW && hLine) {
-      hLines.push(hLine.trim());
-      hLine = hWords[i] + " ";
-    } else hLine = t;
-  }
-  if (hLine) hLines.push(hLine.trim());
-  var hy = 250,
-    hlh = 64;
-  for (let i = 0; i < hLines.length; i++) cx.fillText(hLines[i], textX, hy + i * hlh);
-
-  // Points list — always rendered as a left-aligned block (dash + text)
-  // for readability, regardless of the headline's align setting.
-  var bulletX = align === "left" ? textX : W / 2 - maxW / 2;
-  var bodyMaxW = maxW - 40;
-  var py = hy + hLines.length * hlh + 55;
-  cx.font = "400 30px Arial,sans-serif";
-  (card.points || []).forEach(function (pt) {
-    cx.fillStyle = gold;
-    cx.textAlign = "left";
-    cx.fillText("\u2014", bulletX, py);
-    cx.fillStyle = "rgba(255,255,255,0.92)";
-    var words = (pt || "").split(" ");
-    var line = "",
-      lines = [];
-    for (let i = 0; i < words.length; i++) {
-      const t = line + words[i] + " ";
-      if (cx.measureText(t).width > bodyMaxW && line) {
-        lines.push(line.trim());
-        line = words[i] + " ";
-      } else line = t;
-    }
-    if (line) lines.push(line.trim());
-    for (let i = 0; i < lines.length; i++) cx.fillText(lines[i], bulletX + 36, py + i * 38);
-    py += lines.length * 38 + 18;
-  });
-
-  var nameLine = quoteCardNameLine(speaker, qs, churchName);
-  if (nameLine) {
-    cx.fillStyle = gold;
-    cx.font = "400 28px Arial,sans-serif";
-    cx.textAlign = align;
-    cx.fillText("\u2014 " + nameLine, textX, 1290);
-  }
-  const a2 = document.createElement("a");
-  a2.download = "teaching-card.png";
-  a2.href = cv.toDataURL("image/png");
-  a2.click();
-}
 
 // ── Prompts ───────────────────────────────────────────────────────────────
 // FIX 2: P_CORE is now split into two focused calls.
@@ -346,9 +236,8 @@ function carouselStyleCtx(meta) {
 }
 function P_CORE_A(txt, meta) {
   var seriesCtx = meta && meta.seriesName ? ' This sermon is part of a series called "' + meta.seriesName + '" (Part ' + (meta.seriesNumber || '?') + '). Generate a seriesTheme capturing the series arc.' : '';
-  var teachingCtx = ' Also generate 5 "teachingCards" \u2014 each a headline + 2-3 supporting points, built like a structured teaching graphic (headline states the big idea, points break it into an outline), not a single quote. Use [HL]...[/HL] around 1-2 words in the headline to mark emphasis. CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 do not import generic cultural or pop-psychology framing, especially on topics like forgiveness, reconciliation, and boundaries, where secular and biblical framing commonly diverge.';
-  var captionCtx = ' Every quote AND every teachingCard also needs a "caption" field: 1-2 sentences, written to accompany the image as a social post caption, that gives context and warmly encourages the reader to watch or listen to the full message \u2014 not just a repeat of the quote/headline. Vary the phrasing across cards so they don\u2019t all sound the same.';
-  return 'Analyze this sermon.' + seriesCtx + teachingCtx + captionCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Point 1","Point 2","Point 3","Point 4"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram","caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"text":"Powerful quote 2","platform":"TikTok","caption":"..."},{"text":"Powerful quote 3","platform":"Facebook","caption":"..."},{"text":"Powerful quote 4","platform":"Instagram","caption":"..."},{"text":"Powerful quote 5","platform":"Facebook","caption":"..."},{"text":"Powerful quote 6","platform":"TikTok","caption":"..."},{"text":"Powerful quote 7","platform":"Instagram","caption":"..."}],"teachingCards":[{"headline":"Headline with [HL]emphasis[/HL] 1","points":["Point 1","Point 2"],"caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"headline":"Headline 2","points":["Point 1","Point 2","Point 3"],"caption":"..."},{"headline":"Headline 3","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 4","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 5","points":["Point 1","Point 2","Point 3"],"caption":"..."}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
+  var takeawayCtx = ' Identify the 3 most important, memorable truths from this sermon \u2014 the core takeaways any listener should walk away with, regardless of role or ministry area. Each should be a single, complete, specific sentence grounded in what was actually taught \u2014 not a vague summary fragment.';
+  return 'Analyze this sermon.' + seriesCtx + takeawayCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Core takeaway 1","Core takeaway 2","Core takeaway 3"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram"},{"text":"Powerful quote 2","platform":"TikTok"},{"text":"Powerful quote 3","platform":"Facebook"},{"text":"Powerful quote 4","platform":"Instagram"},{"text":"Powerful quote 5","platform":"Facebook"},{"text":"Powerful quote 6","platform":"TikTok"},{"text":"Powerful quote 7","platform":"Instagram"}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
 }
 function P_CORE_B(txt, meta) {
   var t = meta.title || "Sermon";
@@ -379,11 +268,20 @@ function P_LEADERS(txt, meta) {
   p += " as if " + sp + " is speaking directly to young leaders from this message.";
   p += " Voice: the speaker personally addressing young leaders.";
   p += " Include scripture. Warm mentor tone. 220-350 words.";
+  p += " OPENING: Do not use a fixed or formulaic opening line, and do not default to always addressing the reader as \"young leader\" in the first sentence. Choose whichever entry point is most naturally supported by what is actually in THIS transcript: (1) STORY \u2014 open with a specific, nameable detail the speaker actually said (a story, illustration, turn of phrase, or moment) \u2014 name the real thing, never a vague gesture like \"that story\" or \"what you shared\"; (2) SCRIPTURE \u2014 open with the specific verse the message centered on; (3) TENSION \u2014 open by naming the real tension or paradox the sermon wrestled with; (4) QUESTION \u2014 open with the probing question the sermon itself raised or implied. If the transcript doesn't contain a strong enough specific illustration to reference by name, do NOT force the story hook \u2014 use scripture, tension, or question instead. Every opening must be grounded in something specific and actually stated in this transcript, never a generic reference to an unnamed moment.";
   p += " If no applicable leadership principle, set applicable to false.";
   p += " Return ONLY valid JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"6-8 word principle\",";
-  p += "\"content\":\"220-350 word first-person message\",\"scripture\":\"ref or null\",";
-  p += "\"keyPoints\":[\"Takeaway 1\",\"Takeaway 2\",\"Takeaway 3\"]}}. If not applicable: {\"emergingLeaders\":{\"applicable\":false}}";
+  p += "\"content\":\"220-350 word first-person message\",\"scripture\":\"ref or null\"}}. If not applicable: {\"emergingLeaders\":{\"applicable\":false}}";
   p += " SERMON: " + txt;
+  return p;
+}
+function P_LEADERS_TAKEAWAYS(keyPoints, meta) {
+  var sp = getAddressName(meta.speaker) || "the speaker";
+  var kp = JSON.stringify(keyPoints || []);
+  var p = "Here are this week's 3 core sermon takeaways, written for a general audience: " + kp + ".";
+  p += " Reframe each of these three \u2014 same order, same underlying truth \u2014 specifically for young leaders: what each one means for someone who leads others.";
+  p += " Do not invent new ideas or details beyond what's in the original takeaway. Each should be one sentence, warm mentor tone, as if " + sp + " is speaking directly to the leader.";
+  p += " Return ONLY valid JSON: {\"leaderTakeaways\":[\"...\",\"...\",\"...\"]}";
   return p;
 }
 function P_YOUTH(txt, meta) {
@@ -454,11 +352,7 @@ var R = {
     return 'Analyze this sermon. Return ONLY JSON: {"strategy":{"recommendation":"fresh 2-3 sentence recommendation","weeklyPlan":[{"day":"Sunday","content":"...","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"...","platform":"Instagram / Website"},{"day":"Tuesday","content":"...","platform":"TikTok / Reels"},{"day":"Wednesday","content":"...","platform":"Email / WhatsApp"},{"day":"Thursday","content":"...","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"...","platform":"Instagram / Facebook"},{"day":"Saturday","content":"...","platform":"Facebook / Instagram Stories"}]}}\nSERMON: ' + txt;
   },
   quotes: function (txt) {
-    return 'Analyze this sermon. Each quote also needs a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards. Return ONLY JSON: {"quotes":[{"text":"Q1","platform":"Instagram","caption":"..."},{"text":"Q2","platform":"TikTok","caption":"..."},{"text":"Q3","platform":"Facebook","caption":"..."},{"text":"Q4","platform":"Instagram","caption":"..."},{"text":"Q5","platform":"Facebook","caption":"..."},{"text":"Q6","platform":"TikTok","caption":"..."},{"text":"Q7","platform":"Instagram","caption":"..."}]}\nSERMON: ' + txt;
-  },
-  teachingCards: function (txt) {
-    var g = ' CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 no generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries.';
-    return 'Analyze this sermon. Generate 5 fresh teachingCards, each a headline + 2-3 supporting points (structured teaching graphic, not a quote), plus a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards. Use [HL]...[/HL] for 1-2 emphasized words in each headline.' + g + ' Return ONLY JSON: {"teachingCards":[{"headline":"H1","points":["P1","P2"],"caption":"..."},{"headline":"H2","points":["P1","P2","P3"],"caption":"..."},{"headline":"H3","points":["P1","P2"],"caption":"..."},{"headline":"H4","points":["P1","P2"],"caption":"..."},{"headline":"H5","points":["P1","P2","P3"],"caption":"..."}]}\nSERMON: ' + txt;
+    return 'Analyze this sermon. Return ONLY JSON: {"quotes":[{"text":"Q1","platform":"Instagram"},{"text":"Q2","platform":"TikTok"},{"text":"Q3","platform":"Facebook"},{"text":"Q4","platform":"Instagram"},{"text":"Q5","platform":"Facebook"},{"text":"Q6","platform":"TikTok"},{"text":"Q7","platform":"Instagram"}]}\nSERMON: ' + txt;
   },
   polls: function (txt) {
     return 'Analyze this sermon. Return ONLY JSON: {"polls":[{"question":"...","options":["A","B","C"],"platform":"Instagram Stories","followUp":"..."},{"question":"...","options":["A","B"],"platform":"Facebook","followUp":"..."}]}\nSERMON: ' + txt;
@@ -489,8 +383,9 @@ var R = {
     var p = "Write a fresh For Emerging Leaders section from this sermon by " + fullName + ".";
     p += " First-person voice as if " + sp + " speaks directly to young leaders.";
     p += " Mentor tone, 220-350 words.";
+    p += " OPENING: Do not use a fixed or formulaic opening line, and don't default to always addressing the reader as \"young leader\" in the first sentence. Pick whichever entry point this transcript actually supports: a specific, nameable story/illustration/moment the speaker used (name the real thing, never a vague gesture at an unnamed moment); the specific scripture the message centered on; the real tension or paradox the sermon wrestled with; or the probing question the sermon itself raised. Ground it in something specific and actually stated in this transcript.";
     p += " Return ONLY JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"...\",";
-    p += "\"content\":\"...\",\"scripture\":\"...\",\"keyPoints\":[\"...\",\"...\",\"...\"]}}";
+    p += "\"content\":\"...\",\"scripture\":\"...\"}}";
     p += " SERMON: " + txt;
     return p;
   },
@@ -987,14 +882,6 @@ function quoteCardNameLine(speaker, qs, churchName) {
   if (qs && qs.nameDisplay === "name-church" && churchName) return speaker + ", " + churchName;
   return speaker;
 }
-// Appends the REAL video/audio link (from meta/settings, never AI-guessed)
-// to a caption, for the copy-to-clipboard button. Facebook captions do
-// support clickable links, unlike Instagram, so this is worth including.
-function captionWithLink(caption, meta, settings) {
-  var link = meta && (meta.videoLink || meta.audioLink) || (settings && settings.appUrl) || "";
-  if (!caption) return link;
-  return link ? caption + "\n\n" + link : caption;
-}
 function QuoteCard(props) {
   var quote = props.quote,
     photo = props.photo,
@@ -1062,114 +949,6 @@ function QuoteCard(props) {
       opacity: 0.9
     }
   }, "\u201C")), onDownload && React.createElement("button", {
-    onClick: onDownload,
-    style: {
-      marginTop: 6,
-      width: "100%",
-      fontSize: 12,
-      padding: "5px",
-      borderRadius: 6,
-      border: "1px solid " + GOLD + "55",
-      background: GOLD_L,
-      color: PURPLE,
-      cursor: "pointer",
-      fontWeight: 500
-    }
-  }, "\u2B07 Download PNG"));
-}
-// Structured Teaching Card — headline + 2-3 supporting points, clean
-// "notes app" layout (no icons, per Henry's direction). Reuses the same
-// background/font/align/name-display controls as QuoteCard.
-function TeachingCard(props) {
-  var card = props.card || {},
-    photo = props.photo,
-    speaker = props.speaker,
-    gold = props.gold || GOLD,
-    purple = props.purple || PURPLE,
-    onDownload = props.onDownload,
-    qs = props.quoteStyle || {},
-    churchName = props.churchName || "";
-  var usePhoto = qs.mode === "photo" && photo;
-  var fontStyle = QC_FONTS[qs.font] || QC_FONTS.bold;
-  var align = qs.align === "left" ? "left" : "center";
-  var nameLine = quoteCardNameLine(speaker, qs, churchName);
-  return React.createElement("div", null, React.createElement("div", {
-    style: {
-      position: "relative",
-      aspectRatio: "4/5",
-      borderRadius: 12,
-      overflow: "hidden",
-      background: usePhoto ? "transparent" : quoteCardBg(qs, purple),
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: usePhoto ? "flex-end" : "center"
-    }
-  }, usePhoto && React.createElement("img", {
-    src: photo,
-    alt: "",
-    style: {
-      position: "absolute",
-      inset: 0,
-      width: "100%",
-      height: "100%",
-      objectFit: "cover"
-    }
-  }), React.createElement("div", {
-    style: {
-      position: "relative",
-      width: "100%",
-      background: usePhoto ? "linear-gradient(transparent," + purple + "F5 45%)" : "transparent",
-      padding: "1.75rem 1.25rem",
-      textAlign: align
-    }
-  }, React.createElement("p", {
-    style: Object.assign({
-      color: "#fff",
-      fontSize: 19,
-      lineHeight: 1.3,
-      margin: "0 0 16px"
-    }, fontStyle)
-  }, renderHL(card.headline, gold)), React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: 9,
-      alignItems: align === "left" ? "flex-start" : "center"
-    }
-  }, (card.points || []).map(function (pt, i) {
-    return React.createElement("div", {
-      key: i,
-      style: {
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 8,
-        maxWidth: "92%",
-        textAlign: "left"
-      }
-    }, React.createElement("span", {
-      style: {
-        color: gold,
-        fontSize: 13,
-        lineHeight: "1.6em",
-        flexShrink: 0
-      }
-    }, "\u2014"), React.createElement("span", {
-      style: {
-        color: "#fff",
-        fontSize: 13,
-        lineHeight: 1.5,
-        opacity: 0.92
-      }
-    }, pt));
-  })), nameLine && React.createElement("p", {
-    style: {
-      color: gold,
-      fontSize: 12,
-      margin: "16px 0 0",
-      fontWeight: 600,
-      textAlign: align
-    }
-  }, "\u2014 " + nameLine))), onDownload && React.createElement("button", {
     onClick: onDownload,
     style: {
       marginTop: 6,
@@ -2865,9 +2644,7 @@ function App() {
     quoteMarks: true,
     nameDisplay: "name",
     // "name" | "name-title" | "name-church"
-    speakerTitle: "",
-    contentType: "quote"
-    // "quote" | "teaching" — Simple Quote vs Structured Teaching layout
+    speakerTitle: ""
   }),
     quoteStyle = quoteStyleState[0],
     setQuoteStyle = quoteStyleState[1];
@@ -2942,6 +2719,9 @@ function App() {
   var errLeadersState = useState(false),
     errLeaders = errLeadersState[0],
     setErrLeaders = errLeadersState[1];
+  var loadLeaderTakeawaysState = useState(false),
+    loadLeaderTakeaways = loadLeaderTakeawaysState[0],
+    setLoadLeaderTakeaways = loadLeaderTakeawaysState[1];
   // Feature 6 — Youth Ministry content. On-demand only (no auto-fire) to
   // avoid adding a 5th concurrent call during Analyze / rate-limit risk.
   var youthDataState = useState(null),
@@ -3195,6 +2975,18 @@ function App() {
     } catch (e) {}
     setFrenchLoading(null);
   }
+
+  // Fires the leader-specific reframe of the shared Key Takeaways once both
+  // are available. Waits on real state rather than a fixed timer, since
+  // coreData and emergingLeadersData resolve independently and at
+  // unpredictable times relative to each other.
+  useEffect(function () {
+    if (!emergingLeadersData || !emergingLeadersData.applicable) return;
+    if ((emergingLeadersData.keyPoints || []).length) return;
+    if (!coreData || !(coreData.keyPoints || []).length) return;
+    if (loadLeaderTakeaways) return;
+    runLeaderTakeaways(coreData.keyPoints);
+  }, [emergingLeadersData, coreData]);
 
   // On-demand written content: generates when user navigates to Written tab/sub-tabs.
   // This prevents rate-limit failures from firing 5 API calls simultaneously on Analyze.
@@ -3564,6 +3356,39 @@ function App() {
       }
     }
     setLoadLeaders(false);
+  }
+  // Reframes the shared Key Takeaways (coreData.keyPoints) specifically for
+  // young leaders. Fires only once both the main Emerging Leaders message
+  // and the shared takeaways are available — see useEffect below.
+  async function runLeaderTakeaways(keyPoints, attempt) {
+    attempt = attempt || 1;
+    setLoadLeaderTakeaways(true);
+    try {
+      var raw = await callAPI(P_LEADERS_TAKEAWAYS(keyPoints, meta), 1200);
+      var p = parseJ(raw);
+      if (p && p.leaderTakeaways && p.leaderTakeaways.length) {
+        setEmergingLeadersData(function (prev) {
+          return prev ? Object.assign({}, prev, {
+            keyPoints: p.leaderTakeaways
+          }) : prev;
+        });
+      } else if (attempt < 2) {
+        setLoadLeaderTakeaways(false);
+        setTimeout(function () {
+          runLeaderTakeaways(keyPoints, 2);
+        }, 1500);
+        return;
+      }
+    } catch (e) {
+      if (attempt < 2) {
+        setLoadLeaderTakeaways(false);
+        setTimeout(function () {
+          runLeaderTakeaways(keyPoints, 2);
+        }, 1500);
+        return;
+      }
+    }
+    setLoadLeaderTakeaways(false);
   }
   async function runYouth(txt, attempt) {
     attempt = attempt || 1;
@@ -4021,17 +3846,7 @@ function App() {
   // Feature 2 — downloads every quote card as a PNG. Staggered by 400ms each
   // so the browser doesn't treat it as a multi-download popup and block it.
   function downloadAllQuoteCards() {
-    if (!coreData) return;
-    if (quoteStyle.contentType === "teaching") {
-      if (!coreData.teachingCards || !coreData.teachingCards.length) return;
-      coreData.teachingCards.forEach(function (c, i) {
-        setTimeout(function () {
-          downloadTeachingCard(c, meta.speaker, photos[i % photos.length] || null, gold, purple, quoteStyle, settings.churchName);
-        }, i * 400);
-      });
-      return;
-    }
-    if (!coreData.quotes || !coreData.quotes.length) return;
+    if (!coreData || !coreData.quotes || !coreData.quotes.length) return;
     coreData.quotes.forEach(function (q, i) {
       setTimeout(function () {
         var qText = get("q-" + i, q.text);
@@ -4080,6 +3895,7 @@ function App() {
     });
     setEmergingLeadersData(null);
     setErrLeaders(false);
+    setLoadLeaderTakeaways(false);
     setYouthData(null);
     setErrYouth(false);
     setChildrenData(null);
@@ -4109,7 +3925,7 @@ function App() {
       var raw = await callAPI(prompt, tok || 3000);
       var p = parseJ(raw);
       if (p) {
-        if (["strategy", "quotes", "polls", "carousel", "teachingCards"].indexOf(type) >= 0) setCoreData(function (prev) {
+        if (["strategy", "quotes", "polls", "carousel"].indexOf(type) >= 0) setCoreData(function (prev) {
           return Object.assign({}, prev, p);
         });else if (type === "blogEmail") setWrittenAData(function (prev) {
           return Object.assign({}, prev, p);
@@ -5289,24 +5105,49 @@ function App() {
       margin: "0 0 12px",
       lineHeight: 1.6
     }
-  }, coreData.summary), React.createElement("div", {
+  }, coreData.summary)), coreData && (coreData.keyPoints || []).length > 0 && React.createElement(Card, {
     style: {
-      display: "flex",
-      gap: 5,
-      flexWrap: "wrap"
+      borderLeft: "4px solid " + gold
     }
-  }, (coreData.keyPoints || []).map(function (pt, i) {
-    return React.createElement("span", {
+  }, React.createElement("p", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: "#999",
+      margin: "0 0 10px",
+      textTransform: "uppercase",
+      letterSpacing: "0.06em"
+    }
+  }, "Key Takeaways"), (coreData.keyPoints || []).map(function (pt, i) {
+    return React.createElement("div", {
       key: i,
       style: {
-        fontSize: 12,
-        padding: "3px 10px",
-        borderRadius: 16,
-        background: "rgba(255,255,255,0.12)",
-        color: "rgba(255,255,255,0.9)"
+        display: "flex",
+        gap: 10,
+        marginBottom: 8
       }
-    }, pt);
-  }))), anyData && React.createElement("div", null,
+    }, React.createElement("div", {
+      style: {
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        background: gold,
+        color: PURPLE_D,
+        fontSize: 11,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontWeight: 700,
+        flexShrink: 0
+      }
+    }, i + 1), React.createElement("p", {
+      style: {
+        fontSize: 14,
+        margin: 0,
+        lineHeight: 1.6
+      }
+    }, pt));
+  })), anyData && React.createElement("div", null,
   // Tabs + download
   React.createElement("div", {
     style: {
@@ -5637,10 +5478,10 @@ function App() {
       gap: 8
     }
   }, React.createElement(FrenchBtn, {
-    loading: frenchLoading === (quoteStyle.contentType === "teaching" ? "teachingCards" : "quotes"),
-    hasData: !!(quoteStyle.contentType === "teaching" ? frenchData.teachingCards : frenchData.quotes),
+    loading: frenchLoading === "quotes",
+    hasData: !!frenchData.quotes,
     onClick: function () {
-      if (quoteStyle.contentType === "teaching") runFrench("teachingCards", coreData.teachingCards);else runFrench("quotes", coreData.quotes);
+      runFrench("quotes", coreData.quotes);
     }
   }), React.createElement("button", {
     onClick: downloadAllQuoteCards,
@@ -5654,10 +5495,10 @@ function App() {
       cursor: "pointer"
     }
   }, "\u2B07\uFE0F Download all"), React.createElement(RegenBtn, {
-    type: quoteStyle.contentType === "teaching" ? "teachingCards" : "quotes",
+    type: "quotes",
     loading: regenLoading,
     onRegen: function () {
-      regen(quoteStyle.contentType === "teaching" ? "teachingCards" : "quotes");
+      regen("quotes");
     },
     disabled: !canRegen
   }))), React.createElement("div", {
@@ -5678,40 +5519,6 @@ function App() {
       letterSpacing: "0.04em"
     }
   }, "\uD83C\uDFA8 Quote card style"), React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: 6,
-      marginBottom: 10
-    }
-  }, [{
-    v: "quote",
-    label: "Simple Quote"
-  }, {
-    v: "teaching",
-    label: "Structured Teaching"
-  }].map(function (o) {
-    return React.createElement("button", {
-      key: o.v,
-      onClick: function () {
-        setQuoteStyle(function (q) {
-          return Object.assign({}, q, {
-            contentType: o.v
-          });
-        });
-      },
-      style: {
-        flex: 1,
-        fontSize: 12,
-        padding: "6px 10px",
-        borderRadius: 8,
-        border: "1px solid " + (quoteStyle.contentType === o.v ? purple : "#ddd"),
-        background: quoteStyle.contentType === o.v ? purple : "#fff",
-        color: quoteStyle.contentType === o.v ? "#fff" : "#555",
-        cursor: "pointer",
-        fontWeight: 600
-      }
-    }, o.label);
-  })), React.createElement("div", {
     style: {
       display: "flex",
       gap: 6,
@@ -5936,99 +5743,7 @@ function App() {
       gridTemplateColumns: "repeat(auto-fill, minmax(min(100%,200px),1fr))",
       gap: 14
     }
-  }, quoteStyle.contentType === "teaching" ? (coreData.teachingCards || []).map(function (c, i) {
-    var headline = get("tc-h-" + i, c.headline);
-    var plainText = headline.replace(/\[HL\]|\[\/HL\]/g, "") + (c.points && c.points.length ? "\n" + c.points.map(function (p) {
-      return "\u2014 " + p;
-    }).join("\n") : "");
-    return React.createElement("div", {
-      key: i
-    }, React.createElement(TeachingCard, {
-      card: Object.assign({}, c, {
-        headline: headline
-      }),
-      photo: photos[i % photos.length] || null,
-      speaker: meta.speaker,
-      gold: gold,
-      purple: purple,
-      quoteStyle: quoteStyle,
-      churchName: settings.churchName,
-      onDownload: function () {
-        downloadTeachingCard(Object.assign({}, c, {
-          headline: headline
-        }), meta.speaker, photos[i % photos.length] || null, gold, purple, quoteStyle, settings.churchName);
-      }
-    }), React.createElement("div", {
-      style: {
-        display: "flex",
-        justifyContent: "flex-end",
-        marginTop: 6
-      }
-    }, React.createElement(CopyBtn, {
-      text: plainText
-    })), React.createElement("div", {
-      style: {
-        marginTop: 6
-      }
-    }, React.createElement(Editable, {
-      value: headline.replace(/\[HL\]|\[\/HL\]/g, ""),
-      onChange: function (v) {
-        set("tc-h-" + i, v);
-      },
-      multiline: true,
-      style: {
-        fontSize: 12,
-        color: "#555",
-        lineHeight: 1.5,
-        fontWeight: 600
-      }
-    }), React.createElement("ul", {
-      style: {
-        margin: "6px 0 0",
-        paddingLeft: 16,
-        fontSize: 11,
-        color: "#888",
-        lineHeight: 1.5
-      }
-    }, (c.points || []).map(function (p, j) {
-      return React.createElement("li", {
-        key: j
-      }, p);
-    }))), c.caption && React.createElement("div", {
-      style: {
-        marginTop: 8,
-        paddingTop: 8,
-        borderTop: "1px solid #EEE"
-      }
-    }, React.createElement("p", {
-      style: {
-        fontSize: 11,
-        color: "#888",
-        fontWeight: 600,
-        margin: "0 0 3px",
-        textTransform: "uppercase",
-        letterSpacing: "0.03em"
-      }
-    }, "Caption"), React.createElement("p", {
-      style: {
-        fontSize: 12,
-        color: "#555",
-        lineHeight: 1.5,
-        margin: "0 0 4px"
-      }
-    }, c.caption), React.createElement(CopyBtn, {
-      text: captionWithLink(c.caption, meta, settings),
-      label: "Copy caption"
-    })), React.createElement("div", {
-      style: {
-        marginTop: 6
-      }
-    }, React.createElement(StatusBadge, {
-      itemKey: "teaching-" + i,
-      status: getStatus("teaching-" + i),
-      onUpdate: updateStatus
-    })));
-  }) : (coreData.quotes || []).map(function (q, i) {
+  }, (coreData.quotes || []).map(function (q, i) {
     var qText = get("q-" + i, q.text);
     var pc = platC(q.platform);
     return React.createElement("div", {
@@ -6072,31 +5787,6 @@ function App() {
         color: "#555",
         lineHeight: 1.5
       }
-    })), q.caption && React.createElement("div", {
-      style: {
-        marginTop: 8,
-        paddingTop: 8,
-        borderTop: "1px solid #EEE"
-      }
-    }, React.createElement("p", {
-      style: {
-        fontSize: 11,
-        color: "#888",
-        fontWeight: 600,
-        margin: "0 0 3px",
-        textTransform: "uppercase",
-        letterSpacing: "0.03em"
-      }
-    }, "Caption"), React.createElement("p", {
-      style: {
-        fontSize: 12,
-        color: "#555",
-        lineHeight: 1.5,
-        margin: "0 0 4px"
-      }
-    }, q.caption), React.createElement(CopyBtn, {
-      text: captionWithLink(q.caption, meta, settings),
-      label: "Copy caption"
     })), React.createElement("div", {
       style: {
         marginTop: 6
@@ -6199,79 +5889,7 @@ function App() {
     }), React.createElement(CopyBtn, {
       text: "\u201C" + q.text + "\u201D"
     })));
-  })))), frenchData.teachingCards && React.createElement("div", {
-    style: {
-      marginTop: 14
-    }
-  }, React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 10
-    }
-  }, React.createElement("p", {
-    style: {
-      fontSize: 12,
-      fontWeight: 600,
-      color: "#1877F2",
-      textTransform: "uppercase",
-      letterSpacing: "0.05em",
-      margin: 0
-    }
-  }, "\uD83C\uDDEB\uD83C\uDDF7 Cartes d\u2019enseignement (Fran\u00e7ais)"), React.createElement("button", {
-    onClick: function () {
-      setFrenchData(function (p) {
-        var u = Object.assign({}, p);
-        delete u.teachingCards;
-        return u;
-      });
-    },
-    style: {
-      background: "none",
-      border: "none",
-      fontSize: 16,
-      cursor: "pointer",
-      color: "#999"
-    }
-  }, "\u00D7")), React.createElement("div", {
-    style: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 14
-    }
-  }, (frenchData.teachingCards || []).map(function (c, i) {
-    return React.createElement(Card, {
-      key: i
-    }, React.createElement("p", {
-      style: {
-        fontSize: 13,
-        fontWeight: 700,
-        margin: "0 0 8px",
-        lineHeight: 1.4
-      }
-    }, renderHL(c.headline, gold)), React.createElement("ul", {
-      style: {
-        margin: 0,
-        paddingLeft: 16,
-        fontSize: 12,
-        color: "#555",
-        lineHeight: 1.6
-      }
-    }, (c.points || []).map(function (p, j) {
-      return React.createElement("li", {
-        key: j
-      }, p);
-    })), React.createElement("div", {
-      style: {
-        marginTop: 8
-      }
-    }, React.createElement(CopyBtn, {
-      text: (c.headline || "").replace(/\[HL\]|\[\/HL\]/g, "") + "\n" + (c.points || []).map(function (p) {
-        return "\u2014 " + p;
-      }).join("\n")
-    })));
-  }))), activeTab === "Reels" && React.createElement("div", null, err2 && React.createElement(ErrBlock, {
+  })))), activeTab === "Reels" && React.createElement("div", null, err2 && React.createElement(ErrBlock, {
     label: "Reels & excerpts failed \u2014 tap to retry.",
     onRetry: function () {
       runContent(input);
