@@ -344,23 +344,11 @@ function carouselStyleCtx(meta) {
   }
   return parts.length ? " " + parts.join(" ") : "";
 }
-// Feeds the already-confirmed Core Takeaways in as a consistency guardrail
-// for REGENERATED content (the initial analysis generates carousels/quotes/
-// teachingCards in parallel with keyPoints, so they can't reference each
-// other yet at that point — this only applies once keyPoints already exist).
-function takeawaysGuardCtx(coreData) {
-  var kp = coreData && coreData.keyPoints || [];
-  if (!kp.length) return "";
-  return " These Core Takeaways have already been confirmed accurate for this sermon \u2014 find your own angle and don\u2019t just restate them, but nothing you generate should contradict them: " + kp.map(function (p, i) {
-    return i + 1 + ") " + p;
-  }).join(" ") + ".";
-}
 function P_CORE_A(txt, meta) {
   var seriesCtx = meta && meta.seriesName ? ' This sermon is part of a series called "' + meta.seriesName + '" (Part ' + (meta.seriesNumber || '?') + '). Generate a seriesTheme capturing the series arc.' : '';
-  var takeawaysCtx = ' Identify the sermon\u2019s "keyPoints" (Core Takeaways) \u2014 normally exactly 3. Only return 4 or 5 if the sermon explicitly and clearly organizes itself around that many distinct major points; never stretch or pad a weak point just to reach a number. Never go below 3 unless the sermon genuinely does not support it.';
-  var teachingCtx = ' Also generate 5 "teachingCards" \u2014 each a headline + 2-3 supporting points, built like a structured teaching graphic (headline states the big idea, points break it into an outline), not a single quote. The FIRST 3 teachingCards MUST each directly expand ONE of the keyPoints (Core Takeaways), in the same order \u2014 card 1 expands takeaway 1, card 2 expands takeaway 2, card 3 expands takeaway 3 \u2014 don\u2019t just restate the takeaway as the headline, build it out with real supporting detail from the sermon. Any 4th/5th teachingCard can explore any other compelling angle from the sermon. Use [HL]...[/HL] around 1-2 words in each headline to mark emphasis. CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 do not import generic cultural or pop-psychology framing, especially on topics like forgiveness, reconciliation, and boundaries, where secular and biblical framing commonly diverge.';
+  var teachingCtx = ' Also generate 5 "teachingCards" \u2014 each a headline + 2-3 supporting points, built like a structured teaching graphic (headline states the big idea, points break it into an outline), not a single quote. Use [HL]...[/HL] around 1-2 words in the headline to mark emphasis. CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 do not import generic cultural or pop-psychology framing, especially on topics like forgiveness, reconciliation, and boundaries, where secular and biblical framing commonly diverge.';
   var captionCtx = ' Every quote AND every teachingCard also needs a "caption" field: 1-2 sentences, written to accompany the image as a social post caption, that gives context and warmly encourages the reader to watch or listen to the full message \u2014 not just a repeat of the quote/headline. Vary the phrasing across cards so they don\u2019t all sound the same.';
-  return 'Analyze this sermon.' + seriesCtx + takeawaysCtx + teachingCtx + captionCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Core takeaway 1","Core takeaway 2","Core takeaway 3"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram","caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"text":"Powerful quote 2","platform":"TikTok","caption":"..."},{"text":"Powerful quote 3","platform":"Facebook","caption":"..."},{"text":"Powerful quote 4","platform":"Instagram","caption":"..."},{"text":"Powerful quote 5","platform":"Facebook","caption":"..."},{"text":"Powerful quote 6","platform":"TikTok","caption":"..."},{"text":"Powerful quote 7","platform":"Instagram","caption":"..."}],"teachingCards":[{"headline":"Expands takeaway 1, [HL]emphasis[/HL]","points":["Point 1","Point 2"],"caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"headline":"Expands takeaway 2","points":["Point 1","Point 2","Point 3"],"caption":"..."},{"headline":"Expands takeaway 3","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 4 (any angle)","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 5 (any angle)","points":["Point 1","Point 2","Point 3"],"caption":"..."}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
+  return 'Analyze this sermon.' + seriesCtx + teachingCtx + captionCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Point 1","Point 2","Point 3","Point 4"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram","caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"text":"Powerful quote 2","platform":"TikTok","caption":"..."},{"text":"Powerful quote 3","platform":"Facebook","caption":"..."},{"text":"Powerful quote 4","platform":"Instagram","caption":"..."},{"text":"Powerful quote 5","platform":"Facebook","caption":"..."},{"text":"Powerful quote 6","platform":"TikTok","caption":"..."},{"text":"Powerful quote 7","platform":"Instagram","caption":"..."}],"teachingCards":[{"headline":"Headline with [HL]emphasis[/HL] 1","points":["Point 1","Point 2"],"caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"headline":"Headline 2","points":["Point 1","Point 2","Point 3"],"caption":"..."},{"headline":"Headline 3","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 4","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 5","points":["Point 1","Point 2","Point 3"],"caption":"..."}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
 }
 function P_CORE_B(txt, meta) {
   var t = meta.title || "Sermon";
@@ -393,7 +381,8 @@ function P_LEADERS(txt, meta) {
   p += " Include scripture. Warm mentor tone. 220-350 words.";
   p += " If no applicable leadership principle, set applicable to false.";
   p += " Return ONLY valid JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"6-8 word principle\",";
-  p += "\"content\":\"220-350 word first-person message\",\"scripture\":\"ref or null\"}}. If not applicable: {\"emergingLeaders\":{\"applicable\":false}}";
+  p += "\"content\":\"220-350 word first-person message\",\"scripture\":\"ref or null\",";
+  p += "\"keyPoints\":[\"Takeaway 1\",\"Takeaway 2\",\"Takeaway 3\"]}}. If not applicable: {\"emergingLeaders\":{\"applicable\":false}}";
   p += " SERMON: " + txt;
   return p;
 }
@@ -464,14 +453,12 @@ var R = {
   strategy: function (txt) {
     return 'Analyze this sermon. Return ONLY JSON: {"strategy":{"recommendation":"fresh 2-3 sentence recommendation","weeklyPlan":[{"day":"Sunday","content":"...","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"...","platform":"Instagram / Website"},{"day":"Tuesday","content":"...","platform":"TikTok / Reels"},{"day":"Wednesday","content":"...","platform":"Email / WhatsApp"},{"day":"Thursday","content":"...","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"...","platform":"Instagram / Facebook"},{"day":"Saturday","content":"...","platform":"Facebook / Instagram Stories"}]}}\nSERMON: ' + txt;
   },
-  quotes: function (txt, meta, coreData) {
-    var g = takeawaysGuardCtx(coreData);
-    return 'Analyze this sermon. Each quote also needs a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards.' + g + ' Return ONLY JSON: {"quotes":[{"text":"Q1","platform":"Instagram","caption":"..."},{"text":"Q2","platform":"TikTok","caption":"..."},{"text":"Q3","platform":"Facebook","caption":"..."},{"text":"Q4","platform":"Instagram","caption":"..."},{"text":"Q5","platform":"Facebook","caption":"..."},{"text":"Q6","platform":"TikTok","caption":"..."},{"text":"Q7","platform":"Instagram","caption":"..."}]}\nSERMON: ' + txt;
+  quotes: function (txt) {
+    return 'Analyze this sermon. Each quote also needs a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards. Return ONLY JSON: {"quotes":[{"text":"Q1","platform":"Instagram","caption":"..."},{"text":"Q2","platform":"TikTok","caption":"..."},{"text":"Q3","platform":"Facebook","caption":"..."},{"text":"Q4","platform":"Instagram","caption":"..."},{"text":"Q5","platform":"Facebook","caption":"..."},{"text":"Q6","platform":"TikTok","caption":"..."},{"text":"Q7","platform":"Instagram","caption":"..."}]}\nSERMON: ' + txt;
   },
-  teachingCards: function (txt, meta, coreData) {
-    var g = ' CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 no generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries.' + takeawaysGuardCtx(coreData);
-    var anchorCtx = (coreData && coreData.keyPoints && coreData.keyPoints.length) ? ' The FIRST ' + Math.min(3, coreData.keyPoints.length) + ' teachingCards MUST each directly expand ONE of the Core Takeaways listed above, in order (card 1 = takeaway 1, etc.) \u2014 build out real supporting detail, don\u2019t just restate the takeaway as the headline. Any remaining cards can explore other angles.' : '';
-    return 'Analyze this sermon. Generate 5 fresh teachingCards, each a headline + 2-3 supporting points (structured teaching graphic, not a quote), plus a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards. Use [HL]...[/HL] for 1-2 emphasized words in each headline.' + g + anchorCtx + ' Return ONLY JSON: {"teachingCards":[{"headline":"H1","points":["P1","P2"],"caption":"..."},{"headline":"H2","points":["P1","P2","P3"],"caption":"..."},{"headline":"H3","points":["P1","P2"],"caption":"..."},{"headline":"H4","points":["P1","P2"],"caption":"..."},{"headline":"H5","points":["P1","P2","P3"],"caption":"..."}]}\nSERMON: ' + txt;
+  teachingCards: function (txt) {
+    var g = ' CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 no generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries.';
+    return 'Analyze this sermon. Generate 5 fresh teachingCards, each a headline + 2-3 supporting points (structured teaching graphic, not a quote), plus a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards. Use [HL]...[/HL] for 1-2 emphasized words in each headline.' + g + ' Return ONLY JSON: {"teachingCards":[{"headline":"H1","points":["P1","P2"],"caption":"..."},{"headline":"H2","points":["P1","P2","P3"],"caption":"..."},{"headline":"H3","points":["P1","P2"],"caption":"..."},{"headline":"H4","points":["P1","P2"],"caption":"..."},{"headline":"H5","points":["P1","P2","P3"],"caption":"..."}]}\nSERMON: ' + txt;
   },
   polls: function (txt) {
     return 'Analyze this sermon. Return ONLY JSON: {"polls":[{"question":"...","options":["A","B","C"],"platform":"Instagram Stories","followUp":"..."},{"question":"...","options":["A","B"],"platform":"Facebook","followUp":"..."}]}\nSERMON: ' + txt;
@@ -503,7 +490,7 @@ var R = {
     p += " First-person voice as if " + sp + " speaks directly to young leaders.";
     p += " Mentor tone, 220-350 words.";
     p += " Return ONLY JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"...\",";
-    p += "\"content\":\"...\",\"scripture\":\"...\"}}";
+    p += "\"content\":\"...\",\"scripture\":\"...\",\"keyPoints\":[\"...\",\"...\",\"...\"]}}";
     p += " SERMON: " + txt;
     return p;
   },
@@ -543,14 +530,14 @@ var R = {
     p += " SERMON: " + txt;
     return p;
   },
-  carousel: function (txt, meta, coreData) {
+  carousel: function (txt, meta) {
     var t = meta && meta.title || "Sermon";
     var styleCtx = carouselStyleCtx(meta);
     var seriesTag = meta && meta.seriesName ? meta.seriesName + (meta.seriesNumber ? " \u2014 Part " + meta.seriesNumber : "") : "";
     var outwardCtx = ' The first 3 carousels can take any distinct angle for people likely already at church. The 4th MUST be written for someone who was NOT in the room \u2014 self-contained, inviting, not assuming prior context.';
     var hookCtx = ' Each of the first 3 MUST use a different hook archetype: 1 = QUESTION hook. 2 = MYTH-BUSTING/contrarian hook. 3 = STORY/MOMENT hook \u2014 MUST open with an actual, specific, nameable detail from THIS sermon (a real illustration, phrase, or moment the speaker used), NOT a generic placeholder like "There was a moment when...". If no single clear anecdote exists, anchor on a specific vivid phrase/image the speaker actually used instead \u2014 still concrete, never generic filler. The 4th keeps its own outsider-facing hook.';
     var captionCtx = ' Each also needs a real Instagram caption (1-3 sentences, not a repeat of the cover), 5-8 hashtags (no # symbol), and a suggested first comment carrying the link invite (since captions can\u2019t have clickable links).';
-    var groundingCtx = ' CRITICAL \u2014 every statement, point, and caption MUST be strictly grounded in what THIS sermon actually taught. Do not import generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries. Unless the sermon explicitly says otherwise, never imply forgiveness means someone doesn\u2019t need to reconcile or restore the relationship \u2014 the biblical view is that reconciliation should always be pursued wherever possible (Romans 12:18), even though not every relationship can be fully restored. If a nuance isn\u2019t explicitly addressed in the sermon, don\u2019t fill it in with an outside assumption \u2014 stay closer to scripture and what was actually said.' + takeawaysGuardCtx(coreData);
+    var groundingCtx = ' CRITICAL \u2014 every statement, point, and caption MUST be strictly grounded in what THIS sermon actually taught. Do not import generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries. Unless the sermon explicitly says otherwise, never imply forgiveness means someone doesn\u2019t need to reconcile or restore the relationship \u2014 the biblical view is that reconciliation should always be pursued wherever possible (Romans 12:18), even though not every relationship can be fully restored. If a nuance isn\u2019t explicitly addressed in the sermon, don\u2019t fill it in with an outside assumption \u2014 stay closer to scripture and what was actually said.';
     return 'Analyze this sermon. Create 4 fresh carousels with different angles.' + styleCtx + outwardCtx + hookCtx + captionCtx + groundingCtx + ' Return ONLY JSON: {"carousel":[{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"question","coverHeadline":"FRESH HOOK 1 \u2014 A QUESTION","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"}],"memeCaption":"Relatable meme-style line","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL] STATEMENT.","statementCta":"CTA.","bonusTitle":"Questions:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"myth","coverHeadline":"HOOK 2 \u2014 MYTH-BUSTING","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"}],"memeCaption":"Relatable meme-style line","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL].","statementCta":"CTA 2.","bonusTitle":"Reflect:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"story","coverHeadline":"HOOK 3 \u2014 A MOMENT","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"}],"memeCaption":"Relatable meme-style line","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL].","statementCta":"CTA 3.","bonusTitle":"Ask:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"outsider","coverHeadline":"HOOK 4 \u2014 FOR SOMEONE WHO MISSED IT","coverQuote":"self-contained, zero prior context","slides":[{"number":1,"text":"P1 \u2014 self-contained"},{"number":2,"text":"P2 \u2014 self-contained"},{"number":3,"text":"P3 \u2014 self-contained"}],"memeCaption":"Relatable meme-style line, lands even for someone new","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL] statement that invites.","statementCta":"CTA 4 \u2014 an invitation framed for someone who has never been.","bonusTitle":"Deeper:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption, for someone new","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"}]}\nSERMON: ' + txt;
   }
 };
@@ -3976,10 +3963,10 @@ function App() {
       line(emergingLeadersData.content);
       line("");
       if (emergingLeadersData.scripture) line("Scripture:  " + emergingLeadersData.scripture);
-      if ((coreData.keyPoints || []).length) {
+      if ((emergingLeadersData.keyPoints || []).length) {
         line("");
-        line("Core Takeaways:");
-        (coreData.keyPoints || []).forEach(function (pt) {
+        line("Key Takeaways:");
+        (emergingLeadersData.keyPoints || []).forEach(function (pt) {
           bullet(pt);
         });
       }
@@ -4118,7 +4105,7 @@ function App() {
     setRegenLoading(type);
     try {
       var fn = R[type];
-      var prompt = fn ? fn(input, meta, coreData) : "";
+      var prompt = fn ? fn(input, meta) : "";
       var raw = await callAPI(prompt, tok || 3000);
       var p = parseJ(raw);
       if (p) {
@@ -5302,16 +5289,7 @@ function App() {
       margin: "0 0 12px",
       lineHeight: 1.6
     }
-  }, coreData.summary), (coreData.keyPoints || []).length > 0 && React.createElement("p", {
-    style: {
-      fontSize: 11,
-      fontWeight: 700,
-      color: "rgba(255,255,255,0.6)",
-      textTransform: "uppercase",
-      letterSpacing: "0.06em",
-      margin: "0 0 6px"
-    }
-  }, "Core Takeaways"), React.createElement("div", {
+  }, coreData.summary), React.createElement("div", {
     style: {
       display: "flex",
       gap: 5,
@@ -8598,7 +8576,7 @@ function App() {
       margin: 0,
       whiteSpace: "pre-wrap"
     }
-  }, emergingLeadersData.content)), (coreData.keyPoints || []).length > 0 && React.createElement(Card, {
+  }, emergingLeadersData.content)), (emergingLeadersData.keyPoints || []).length > 0 && React.createElement(Card, {
     style: {
       borderLeft: "4px solid " + purple
     }
@@ -8611,7 +8589,7 @@ function App() {
       textTransform: "uppercase",
       letterSpacing: "0.06em"
     }
-  }, "Core Takeaways"), (coreData.keyPoints || []).map(function (pt, i) {
+  }, "Key Takeaways"), (emergingLeadersData.keyPoints || []).map(function (pt, i) {
     return React.createElement("div", {
       key: i,
       style: {
@@ -9866,7 +9844,7 @@ function App() {
       textTransform: "uppercase",
       letterSpacing: "0.05em"
     }
-  }, "Core Takeaways"), (coreData.keyPoints || []).map(function (pt, i) {
+  }, "Key points"), (coreData.keyPoints || []).map(function (pt, i) {
     return React.createElement("div", {
       key: i,
       style: {
