@@ -207,6 +207,116 @@ async function downloadCard(quote, speaker, photo, gold, purple, quoteStyle, chu
   a.href = cv.toDataURL("image/png");
   a.click();
 }
+async function downloadTeachingCard(card, speaker, photo, gold, purple, quoteStyle, churchName) {
+  gold = gold || GOLD;
+  purple = purple || PURPLE;
+  card = card || {};
+  var qs = quoteStyle || {};
+  var usePhoto = qs.mode === "photo" && photo;
+  var baseColor = qs.solidColor || purple;
+  const W = 1080,
+    H = 1350,
+    cv = document.createElement("canvas");
+  cv.width = W;
+  cv.height = H;
+  const cx = cv.getContext("2d");
+  if (usePhoto) {
+    const img = new Image();
+    await new Promise(function (r) {
+      img.onload = r;
+      img.onerror = r;
+      img.src = photo;
+    });
+    cx.drawImage(img, 0, 0, W, H);
+    const g = cx.createLinearGradient(0, H * 0.25, 0, H);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, purple + "F5");
+    cx.fillStyle = g;
+    cx.fillRect(0, 0, W, H);
+  } else {
+    const g = cx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, baseColor);
+    g.addColorStop(1, PURPLE_D);
+    cx.fillStyle = g;
+    cx.fillRect(0, 0, W, H);
+    if (qs.mode === "textured") {
+      cx.fillStyle = "rgba(255,255,255,0.06)";
+      if (qs.texture === "geometric") {
+        for (let i = -H; i < W; i += 26) {
+          cx.fillRect(i, 0, 3, H * 1.6);
+        }
+      } else if (qs.texture === "linen") {
+        for (let i = 0; i < H; i += 6) cx.fillRect(0, i, W, 1);
+      } else {
+        for (let i = 0; i < W; i += 5) {
+          for (let j = 0; j < H; j += 5) cx.fillRect(i, j, 1, 1);
+        }
+      }
+    }
+  }
+  var align = qs.align === "left" ? "left" : "center";
+  const textX = align === "left" ? 80 : W / 2;
+  const maxW = align === "left" ? 920 : 880;
+
+  // Headline — [HL] markers stripped for canvas (no per-word color here,
+  // matching the simplified export approach already used for quote cards).
+  var headlinePlain = (card.headline || "").replace(/\[HL\]|\[\/HL\]/g, "");
+  cx.fillStyle = "#fff";
+  cx.font = "bold 54px Arial,sans-serif";
+  cx.textAlign = align;
+  var hWords = headlinePlain.split(" ");
+  var hLine = "",
+    hLines = [];
+  for (let i = 0; i < hWords.length; i++) {
+    const t = hLine + hWords[i] + " ";
+    if (cx.measureText(t).width > maxW && hLine) {
+      hLines.push(hLine.trim());
+      hLine = hWords[i] + " ";
+    } else hLine = t;
+  }
+  if (hLine) hLines.push(hLine.trim());
+  var hy = 250,
+    hlh = 64;
+  for (let i = 0; i < hLines.length; i++) cx.fillText(hLines[i], textX, hy + i * hlh);
+
+  // Points list — always rendered as a left-aligned block (dash + text)
+  // for readability, regardless of the headline's align setting.
+  var bulletX = align === "left" ? textX : W / 2 - maxW / 2;
+  var bodyMaxW = maxW - 40;
+  var py = hy + hLines.length * hlh + 55;
+  cx.font = "400 30px Arial,sans-serif";
+  (card.points || []).forEach(function (pt) {
+    cx.fillStyle = gold;
+    cx.textAlign = "left";
+    cx.fillText("\u2014", bulletX, py);
+    cx.fillStyle = "rgba(255,255,255,0.92)";
+    var words = (pt || "").split(" ");
+    var line = "",
+      lines = [];
+    for (let i = 0; i < words.length; i++) {
+      const t = line + words[i] + " ";
+      if (cx.measureText(t).width > bodyMaxW && line) {
+        lines.push(line.trim());
+        line = words[i] + " ";
+      } else line = t;
+    }
+    if (line) lines.push(line.trim());
+    for (let i = 0; i < lines.length; i++) cx.fillText(lines[i], bulletX + 36, py + i * 38);
+    py += lines.length * 38 + 18;
+  });
+
+  var nameLine = quoteCardNameLine(speaker, qs, churchName);
+  if (nameLine) {
+    cx.fillStyle = gold;
+    cx.font = "400 28px Arial,sans-serif";
+    cx.textAlign = align;
+    cx.fillText("\u2014 " + nameLine, textX, 1290);
+  }
+  const a2 = document.createElement("a");
+  a2.download = "teaching-card.png";
+  a2.href = cv.toDataURL("image/png");
+  a2.click();
+}
 
 // ── Prompts ───────────────────────────────────────────────────────────────
 // FIX 2: P_CORE is now split into two focused calls.
@@ -234,10 +344,23 @@ function carouselStyleCtx(meta) {
   }
   return parts.length ? " " + parts.join(" ") : "";
 }
+// Feeds the already-confirmed Core Takeaways in as a consistency guardrail
+// for REGENERATED content (the initial analysis generates carousels/quotes/
+// teachingCards in parallel with keyPoints, so they can't reference each
+// other yet at that point — this only applies once keyPoints already exist).
+function takeawaysGuardCtx(coreData) {
+  var kp = coreData && coreData.keyPoints || [];
+  if (!kp.length) return "";
+  return " These Core Takeaways have already been confirmed accurate for this sermon \u2014 find your own angle and don\u2019t just restate them, but nothing you generate should contradict them: " + kp.map(function (p, i) {
+    return i + 1 + ") " + p;
+  }).join(" ") + ".";
+}
 function P_CORE_A(txt, meta) {
   var seriesCtx = meta && meta.seriesName ? ' This sermon is part of a series called "' + meta.seriesName + '" (Part ' + (meta.seriesNumber || '?') + '). Generate a seriesTheme capturing the series arc.' : '';
-  var takeawayCtx = ' Identify the 3 most important, memorable truths from this sermon \u2014 the core takeaways any listener should walk away with, regardless of role or ministry area. Each should be a single, complete, specific sentence grounded in what was actually taught \u2014 not a vague summary fragment.';
-  return 'Analyze this sermon.' + seriesCtx + takeawayCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Core takeaway 1","Core takeaway 2","Core takeaway 3"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram"},{"text":"Powerful quote 2","platform":"TikTok"},{"text":"Powerful quote 3","platform":"Facebook"},{"text":"Powerful quote 4","platform":"Instagram"},{"text":"Powerful quote 5","platform":"Facebook"},{"text":"Powerful quote 6","platform":"TikTok"},{"text":"Powerful quote 7","platform":"Instagram"}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
+  var takeawaysCtx = ' Identify the sermon\u2019s "keyPoints" (Core Takeaways) \u2014 normally exactly 3. Only return 4 or 5 if the sermon explicitly and clearly organizes itself around that many distinct major points; never stretch or pad a weak point just to reach a number. Never go below 3 unless the sermon genuinely does not support it.';
+  var teachingCtx = ' Also generate 5 "teachingCards" \u2014 each a headline + 2-3 supporting points, built like a structured teaching graphic (headline states the big idea, points break it into an outline), not a single quote. The FIRST 3 teachingCards MUST each directly expand ONE of the keyPoints (Core Takeaways), in the same order \u2014 card 1 expands takeaway 1, card 2 expands takeaway 2, card 3 expands takeaway 3 \u2014 don\u2019t just restate the takeaway as the headline, build it out with real supporting detail from the sermon. Any 4th/5th teachingCard can explore any other compelling angle from the sermon. Use [HL]...[/HL] around 1-2 words in each headline to mark emphasis. CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 do not import generic cultural or pop-psychology framing, especially on topics like forgiveness, reconciliation, and boundaries, where secular and biblical framing commonly diverge.';
+  var captionCtx = ' Every quote AND every teachingCard also needs a "caption" field: 1-2 sentences, written to accompany the image as a social post caption, that gives context and warmly encourages the reader to watch or listen to the full message \u2014 not just a repeat of the quote/headline. Vary the phrasing across cards so they don\u2019t all sound the same.';
+  return 'Analyze this sermon.' + seriesCtx + takeawaysCtx + teachingCtx + captionCtx + ' Return ONLY valid JSON with these exact keys:\n{"theme":"Central theme in 5-7 words","subThemes":["Sub-theme 1","Sub-theme 2","Sub-theme 3"],"summary":"2-3 sentence summary of the sermon","tone":"Prophetic|Teaching|Motivational|Storytelling|Encouraging|Challenging","scripture":"Main scripture reference","additionalScriptures":["Additional ref 1","Additional ref 2"],"series":"Series name or null","seriesTheme":"Auto-generated series theme if series name exists — a short evocative phrase capturing the arc of the series — otherwise null","keyPoints":["Core takeaway 1","Core takeaway 2","Core takeaway 3"],"strategy":{"recommendation":"2-3 sentence content strategy recommendation","weeklyPlan":[{"day":"Sunday","content":"Full sermon + excerpt reel","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"Quote card + blog post","platform":"Instagram / Website"},{"day":"Tuesday","content":"Sermon excerpt reel","platform":"TikTok / Reels"},{"day":"Wednesday","content":"Devotional + small group guide","platform":"Email / WhatsApp"},{"day":"Thursday","content":"Cinematic skit","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"Prayer points + scripture card","platform":"Instagram / Facebook"},{"day":"Saturday","content":"Poll + community challenge","platform":"Facebook / Instagram Stories"}]},"quotes":[{"text":"Powerful quote 1","platform":"Instagram","caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"text":"Powerful quote 2","platform":"TikTok","caption":"..."},{"text":"Powerful quote 3","platform":"Facebook","caption":"..."},{"text":"Powerful quote 4","platform":"Instagram","caption":"..."},{"text":"Powerful quote 5","platform":"Facebook","caption":"..."},{"text":"Powerful quote 6","platform":"TikTok","caption":"..."},{"text":"Powerful quote 7","platform":"Instagram","caption":"..."}],"teachingCards":[{"headline":"Expands takeaway 1, [HL]emphasis[/HL]","points":["Point 1","Point 2"],"caption":"1-2 sentence caption encouraging viewers to watch/listen to the full message"},{"headline":"Expands takeaway 2","points":["Point 1","Point 2","Point 3"],"caption":"..."},{"headline":"Expands takeaway 3","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 4 (any angle)","points":["Point 1","Point 2"],"caption":"..."},{"headline":"Headline 5 (any angle)","points":["Point 1","Point 2","Point 3"],"caption":"..."}],"polls":[{"question":"Engaging poll question","options":["Option A","Option B","Option C"],"platform":"Instagram Stories","followUp":"Conversation starter"},{"question":"Discussion question","options":["Option A","Option B"],"platform":"Facebook","followUp":"Follow-up prompt"}]}\nSERMON: ' + txt;
 }
 function P_CORE_B(txt, meta) {
   var t = meta.title || "Sermon";
@@ -250,7 +373,8 @@ function P_CORE_B(txt, meta) {
   return 'Analyze this sermon. Create 4 distinct Instagram carousel series, each with a different angle/hook.' + styleCtx + outwardCtx + hookCtx + captionCtx + groundingCtx + ' Return ONLY valid JSON:\n{"carousel":[{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"question","coverHeadline":"HOOK 1 IN ALL CAPS \u2014 A QUESTION","coverQuote":"Opening quote","slides":[{"number":1,"text":"Key point 1"},{"number":2,"text":"Key point 2"},{"number":3,"text":"Key point 3"}],"memeCaption":"A short, funny, relatable line capturing the shared feeling/reaction after this message \u2014 meme-caption style, not a teaching point","memeNote":"One sentence describing the visual/meme concept for the design team (e.g. a reaction image, a POV-style caption, etc.)","statementLine":"Bold statement with [HL]highlighted phrase[/HL] here.","statementCta":"Clear call to action sentence.","bonusTitle":"Questions:","bonusItems":["Reflection question 1?","Reflection question 2?","Reflection question 3?","Reflection question 4?","Reflection question 5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence Instagram caption that makes someone want to swipe","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"Suggested first comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"myth","coverHeadline":"HOOK 2 \u2014 MYTH-BUSTING ANGLE","coverQuote":"Second quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"}],"memeCaption":"Relatable meme-style line, second deck","memeNote":"Visual/meme concept note","statementLine":"[HL]Highlighted phrase[/HL] bold statement.","statementCta":"Second call to action.","bonusTitle":"Reflect:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"Suggested first comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"story","coverHeadline":"HOOK 3 \u2014 A SPECIFIC MOMENT","coverQuote":"Third quote","slides":[{"number":1,"text":"Point 1"},{"number":2,"text":"Point 2"},{"number":3,"text":"Point 3"}],"memeCaption":"Relatable meme-style line, third deck","memeNote":"Visual/meme concept note","statementLine":"Statement with [HL]key phrase[/HL].","statementCta":"Third call to action.","bonusTitle":"Ask:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"Suggested first comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"outsider","coverHeadline":"HOOK 4 \u2014 FOR SOMEONE WHO MISSED IT","coverQuote":"Fourth quote, written so it makes sense with zero prior context","slides":[{"number":1,"text":"Point 1 \u2014 self-contained, no assumed context"},{"number":2,"text":"Point 2 \u2014 self-contained"},{"number":3,"text":"Point 3 \u2014 self-contained"}],"memeCaption":"Relatable meme-style line that would land even for someone new","memeNote":"Visual/meme concept note","statementLine":"[HL]Key phrase[/HL] statement that invites, not just reinforces.","statementCta":"Fourth call to action \u2014 an invitation to come or watch, framed for someone who has never been.","bonusTitle":"Deeper:","bonusItems":["Question 1?","Question 2?","Question 3?","Question 4?","Question 5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption, written for someone new","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"Suggested first comment with the link invite"}]}\nSERMON: ' + txt;
 }
 function P_CONTENT(txt) {
-  return 'Analyze this sermon. Return ONLY valid JSON:\n{"sermonExcerpts":[{"title":"Clip title","platform":"Instagram Reels / TikTok","estimatedDuration":"1:30","wordCount":220,"text":"Verbatim passage under 2 min","caption":"Caption with hashtags","whyItWorks":"Why it works standalone"},{"title":"Clip 2","platform":"TikTok","estimatedDuration":"1:45","wordCount":250,"text":"Second verbatim passage","caption":"Caption","whyItWorks":"Why it works"}],"reelStoryboards":[{"title":"Reel 1","platform":"Instagram Reels","duration":"30 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4 CTA"],"caption":"Caption","targetAge":"18-25"},{"title":"Reel 2","platform":"TikTok","duration":"45 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"26-45"},{"title":"Reel 3","platform":"Instagram Reels","duration":"60 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"18-25"},{"title":"Reel 4","platform":"Facebook Reels","duration":"30 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"26-45"}],"skits":[{"title":"Skit 1","concept":"Concept","theme":"Theme","setting":"Setting","cast":"1-2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"18-25","productionTip":"Tip"},{"title":"Skit 2","concept":"Concept","theme":"Theme","setting":"Setting","cast":"2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"26-45","productionTip":"Tip"},{"title":"Skit 3","concept":"Concept","theme":"Theme","setting":"Setting","cast":"1-2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"18-25","productionTip":"Tip"},{"title":"Skit 4","concept":"Concept","theme":"Theme","setting":"Setting","cast":"2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"26-45","productionTip":"Tip"}]}\nSERMON: ' + txt;
+  var patternGuard = ' Additionally, scan the transcript for two specific rhetorical patterns and include a patternReels entry ONLY when the pattern is genuinely present as real spoken text \u2014 never construct, paraphrase, or invent one to fill a slot. (1) REFRAME: a moment where the speaker names a common false belief or expectation, explicitly rejects or corrects it, offers a replacement metaphor or truth, and unpacks that replacement in parallel beats. (2) PROVERB CASCADE: a sequence of 2 or more short, mirrored/symmetrical one-line statements (e.g. "if you are a slave to X, you will be a casualty of Y") that build toward a personal challenge or application. For each pattern found, set patternType to exactly "Reframe" or "Proverb Cascade", pull text verbatim from the transcript covering the full moment (not a single isolated sentence), and use whyItWorks to name the specific structural beats present. If neither pattern is genuinely present in this transcript, return patternReels as an empty array \u2014 do not force a fit.';
+  return 'Analyze this sermon.' + patternGuard + ' Return ONLY valid JSON:\n{"sermonExcerpts":[{"title":"Clip title","platform":"Instagram Reels / TikTok","estimatedDuration":"1:30","wordCount":220,"text":"Verbatim passage under 2 min","caption":"Caption with hashtags","whyItWorks":"Why it works standalone"},{"title":"Clip 2","platform":"TikTok","estimatedDuration":"1:45","wordCount":250,"text":"Second verbatim passage","caption":"Caption","whyItWorks":"Why it works"}],"patternReels":[{"patternType":"Reframe or Proverb Cascade","title":"Clip title","platform":"Instagram Reels / TikTok","estimatedDuration":"0:45","wordCount":140,"text":"Verbatim passage covering the full pattern moment","caption":"Caption with hashtags","whyItWorks":"Name the specific structural beats present"}],"reelStoryboards":[{"title":"Reel 1","platform":"Instagram Reels","duration":"30 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4 CTA"],"caption":"Caption","targetAge":"18-25"},{"title":"Reel 2","platform":"TikTok","duration":"45 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"26-45"},{"title":"Reel 3","platform":"Instagram Reels","duration":"60 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"18-25"},{"title":"Reel 4","platform":"Facebook Reels","duration":"30 sec","hook":"Hook line","scenes":["Scene 1","Scene 2","Scene 3","Scene 4"],"caption":"Caption","targetAge":"26-45"}],"skits":[{"title":"Skit 1","concept":"Concept","theme":"Theme","setting":"Setting","cast":"1-2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"18-25","productionTip":"Tip"},{"title":"Skit 2","concept":"Concept","theme":"Theme","setting":"Setting","cast":"2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"26-45","productionTip":"Tip"},{"title":"Skit 3","concept":"Concept","theme":"Theme","setting":"Setting","cast":"1-2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"18-25","productionTip":"Tip"},{"title":"Skit 4","concept":"Concept","theme":"Theme","setting":"Setting","cast":"2 actors","scenes":["Scene 1","Scene 2","Scene 3"],"hook":"Hook","targetAge":"26-45","productionTip":"Tip"}]}\nSERMON: ' + txt;
 }
 function P_WRITTEN_A(txt, meta) {
   var sp = meta.speaker || "Your Pastor";
@@ -268,20 +392,10 @@ function P_LEADERS(txt, meta) {
   p += " as if " + sp + " is speaking directly to young leaders from this message.";
   p += " Voice: the speaker personally addressing young leaders.";
   p += " Include scripture. Warm mentor tone. 220-350 words.";
-  p += " OPENING: Do not use a fixed or formulaic opening line, and do not default to always addressing the reader as \"young leader\" in the first sentence. Choose whichever entry point is most naturally supported by what is actually in THIS transcript: (1) STORY \u2014 open with a specific, nameable detail the speaker actually said (a story, illustration, turn of phrase, or moment) \u2014 name the real thing, never a vague gesture like \"that story\" or \"what you shared\"; (2) SCRIPTURE \u2014 open with the specific verse the message centered on; (3) TENSION \u2014 open by naming the real tension or paradox the sermon wrestled with; (4) QUESTION \u2014 open with the probing question the sermon itself raised or implied. If the transcript doesn't contain a strong enough specific illustration to reference by name, do NOT force the story hook \u2014 use scripture, tension, or question instead. Every opening must be grounded in something specific and actually stated in this transcript, never a generic reference to an unnamed moment.";
   p += " If no applicable leadership principle, set applicable to false.";
   p += " Return ONLY valid JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"6-8 word principle\",";
   p += "\"content\":\"220-350 word first-person message\",\"scripture\":\"ref or null\"}}. If not applicable: {\"emergingLeaders\":{\"applicable\":false}}";
   p += " SERMON: " + txt;
-  return p;
-}
-function P_LEADERS_TAKEAWAYS(keyPoints, meta) {
-  var sp = getAddressName(meta.speaker) || "the speaker";
-  var kp = JSON.stringify(keyPoints || []);
-  var p = "Here are this week's 3 core sermon takeaways, written for a general audience: " + kp + ".";
-  p += " Reframe each of these three \u2014 same order, same underlying truth \u2014 specifically for young leaders: what each one means for someone who leads others.";
-  p += " Do not invent new ideas or details beyond what's in the original takeaway. Each should be one sentence, warm mentor tone, as if " + sp + " is speaking directly to the leader.";
-  p += " Return ONLY valid JSON: {\"leaderTakeaways\":[\"...\",\"...\",\"...\"]}";
   return p;
 }
 function P_YOUTH(txt, meta) {
@@ -336,12 +450,31 @@ function P_FAMILY(txt, meta) {
   p += " SERMON: " + txt;
   return p;
 }
+function P_PRODUCTCOPY(txt, meta, resourceName, giftAmount) {
+  var sp = meta && meta.speaker || "the speaker";
+  var res = resourceName && resourceName.trim() ? resourceName.trim() : "a resource connected to this message";
+  var giftLine = giftAmount && giftAmount.trim() ? ' Suggested gift/ask amount: "' + giftAmount.trim() + '" — weave this naturally into the callToAction, do not force it if it reads awkwardly.' : ' No specific gift amount was given — write the callToAction as a general request ("for a gift of any amount") rather than inventing a dollar figure.';
+  var p = 'Write broadcast-style resource offer copy for "' + res + '", based on this sermon by ' + sp + '.' + giftLine;
+  p += ' Model the tone and structure on ministry broadcast offers: open with a relatable question or false belief many people carry, reframe it with the truth from this message, name what the resource helps someone discover or experience, then close with a clear, warm call to action.';
+  p += ' Ground every claim in what this sermon actually teaches — do not invent theology or promises the message does not support. Keep it warm and personal, not high-pressure or manipulative.';
+  p += ' Return ONLY valid JSON:\n{"productCopy":{"hookQuestion":"1-2 sentence relatable question or false belief someone might carry, tied to this message","reframe":"2-4 sentence reframe revealing the truth from this sermon, building toward what the resource offers","resourceDelivers":"1-2 sentences on what this specific resource helps the listener discover, understand, or experience","callToAction":"2-3 sentence warm, direct ask — invite them to request/get the resource, referencing the gift amount only if one was given","shortVersion":"a condensed 3-4 sentence version of the full pitch, suitable for a shorter broadcast moment or social caption"}}';
+  p += ' SERMON: ' + txt;
+  return p;
+}
 function P_YOUTUBE(txt, meta, dur, s) {
   var sp = meta.speaker || "the speaker";
   var church = s && s.churchName || "Harvest Church";
   var youtube = s && s.youtubeLink ? "YouTube: " + s.youtubeLink : "";
   var durNote = dur ? " Video duration: " + dur + "." : " Estimate chapter timestamps based on sermon pacing.";
-  return 'Generate a complete YouTube upload package for this sermon by ' + sp + ' at ' + church + '.' + durNote + ' Return ONLY valid JSON:\n{"titles":["SEO-optimized title with keyword","Question-format title that creates curiosity","Promise-format title"],"hook":"First 2 lines of description visible before Show More — must hook immediately (max 160 chars)","descriptionBody":"Full description body 500-800 words: expanded summary paragraph, What you will discover section with 3-5 bullet points using bullet character, about the speaker paragraph, about the church paragraph, subscribe and follow CTA lines, ' + youtube + '","chapters":[{"time":"0:00","title":"Introduction"},{"time":"EST","title":"Section title"}],"tags":["tag1","tag2","tag3","tag4","tag5","tag6","tag7","tag8","tag9","tag10","tag11","tag12","tag13","tag14","tag15"],"thumbnailConcepts":["Short punchy text concept 1 (under 6 words)","Concept 2","Concept 3"]}\nSERMON: ' + txt;
+  var p = 'Generate a complete broadcast/rebroadcast upload package for this sermon by ' + sp + ' at ' + church + '.' + durNote;
+  p += ' This is for a full-length sermon broadcast (YouTube, Facebook, church website), not a short clip.';
+  p += ' TITLES: write 6 distinct title options, each written to grab attention and make someone want to watch/listen right now — vary the angle across curiosity, a direct promise, a question, a bold statement, a relatable pain point, and one clean SEO-forward option with a natural keyword. No two titles should use the same structure.';
+  p += ' DESCRIPTION: the opening paragraph of the description must directly support and reinforce whichever title is most likely to be used — do not write a generic summary that ignores the titles.';
+  p += ' BROADCAST OPEN: this is the most important part. Generate 2-3 candidate broadcast opens, each pairing a Message Hook with a Transition Hook, so a producer can pick the strongest combination.';
+  p += ' The messageHook MUST be a verbatim excerpt copied directly from the SERMON text below — real words the speaker actually said, not a paraphrase or invention. Pick a moment with emotional or rhetorical punch that works read completely out of context, 3-6 sentences long. If the transcript does not contain a strong enough standalone excerpt for a given candidate, do not fabricate one — return fewer broadcastOpens entries instead.';
+  p += ' The transitionHook is newly written connective copy that bridges from that raw excerpt into what today\'s message is about — conversational, direct, names the real tension the message addresses, 2-4 sentences, ends by naming or gesturing at the topic/theme so the viewer knows what they are about to watch.';
+  p += ' Return ONLY valid JSON:\n{"titles":["Curiosity angle","Bold promise angle","Question angle","Bold statement angle","Relatable pain-point angle","Clean SEO-forward angle with natural keyword"],"broadcastOpens":[{"messageHook":"verbatim excerpt from the transcript, 3-6 sentences","transitionHook":"newly written bridge into the message, 2-4 sentences"},{"messageHook":"a second, different verbatim excerpt","transitionHook":"its matching bridge"}],"hook":"First 2 lines of description visible before Show More — must hook immediately (max 160 chars)","descriptionBody":"Full description body 500-800 words: expanded summary paragraph that supports the lead title, What you will discover section with 3-5 bullet points using bullet character, about the speaker paragraph, about the church paragraph, subscribe and follow CTA lines, ' + youtube + '","chapters":[{"time":"0:00","title":"Introduction"},{"time":"EST","title":"Section title"}],"tags":["tag1","tag2","tag3","tag4","tag5","tag6","tag7","tag8","tag9","tag10","tag11","tag12","tag13","tag14","tag15"],"thumbnailConcepts":["Short punchy text concept 1 (under 6 words)","Concept 2","Concept 3"]}\nSERMON: ' + txt;
+  return p;
 }
 function P_HOOKS(txt, meta) {
   var sp = (meta && meta.speaker) ? meta.speaker : 'the speaker';
@@ -351,14 +484,21 @@ var R = {
   strategy: function (txt) {
     return 'Analyze this sermon. Return ONLY JSON: {"strategy":{"recommendation":"fresh 2-3 sentence recommendation","weeklyPlan":[{"day":"Sunday","content":"...","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"...","platform":"Instagram / Website"},{"day":"Tuesday","content":"...","platform":"TikTok / Reels"},{"day":"Wednesday","content":"...","platform":"Email / WhatsApp"},{"day":"Thursday","content":"...","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"...","platform":"Instagram / Facebook"},{"day":"Saturday","content":"...","platform":"Facebook / Instagram Stories"}]}}\nSERMON: ' + txt;
   },
-  quotes: function (txt) {
-    return 'Analyze this sermon. Return ONLY JSON: {"quotes":[{"text":"Q1","platform":"Instagram"},{"text":"Q2","platform":"TikTok"},{"text":"Q3","platform":"Facebook"},{"text":"Q4","platform":"Instagram"},{"text":"Q5","platform":"Facebook"},{"text":"Q6","platform":"TikTok"},{"text":"Q7","platform":"Instagram"}]}\nSERMON: ' + txt;
+  quotes: function (txt, meta, coreData) {
+    var g = takeawaysGuardCtx(coreData);
+    return 'Analyze this sermon. Each quote also needs a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards.' + g + ' Return ONLY JSON: {"quotes":[{"text":"Q1","platform":"Instagram","caption":"..."},{"text":"Q2","platform":"TikTok","caption":"..."},{"text":"Q3","platform":"Facebook","caption":"..."},{"text":"Q4","platform":"Instagram","caption":"..."},{"text":"Q5","platform":"Facebook","caption":"..."},{"text":"Q6","platform":"TikTok","caption":"..."},{"text":"Q7","platform":"Instagram","caption":"..."}]}\nSERMON: ' + txt;
+  },
+  teachingCards: function (txt, meta, coreData) {
+    var g = ' CRITICAL: every headline and point must be strictly grounded in what THIS sermon actually taught \u2014 no generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries.' + takeawaysGuardCtx(coreData);
+    var anchorCtx = (coreData && coreData.keyPoints && coreData.keyPoints.length) ? ' The FIRST ' + Math.min(3, coreData.keyPoints.length) + ' teachingCards MUST each directly expand ONE of the Core Takeaways listed above, in order (card 1 = takeaway 1, etc.) \u2014 build out real supporting detail, don\u2019t just restate the takeaway as the headline. Any remaining cards can explore other angles.' : '';
+    return 'Analyze this sermon. Generate 5 fresh teachingCards, each a headline + 2-3 supporting points (structured teaching graphic, not a quote), plus a "caption": 1-2 sentences accompanying the image, warmly encouraging the reader to watch/listen to the full message. Vary phrasing across cards. Use [HL]...[/HL] for 1-2 emphasized words in each headline.' + g + anchorCtx + ' Return ONLY JSON: {"teachingCards":[{"headline":"H1","points":["P1","P2"],"caption":"..."},{"headline":"H2","points":["P1","P2","P3"],"caption":"..."},{"headline":"H3","points":["P1","P2"],"caption":"..."},{"headline":"H4","points":["P1","P2"],"caption":"..."},{"headline":"H5","points":["P1","P2","P3"],"caption":"..."}]}\nSERMON: ' + txt;
   },
   polls: function (txt) {
     return 'Analyze this sermon. Return ONLY JSON: {"polls":[{"question":"...","options":["A","B","C"],"platform":"Instagram Stories","followUp":"..."},{"question":"...","options":["A","B"],"platform":"Facebook","followUp":"..."}]}\nSERMON: ' + txt;
   },
   reels: function (txt) {
-    return 'Analyze this sermon. Return ONLY JSON: {"sermonExcerpts":[{"title":"...","platform":"Instagram Reels / TikTok","estimatedDuration":"1:30","wordCount":220,"text":"fresh passage","caption":"caption","whyItWorks":"why"},{"title":"...","platform":"TikTok","estimatedDuration":"1:45","wordCount":250,"text":"second passage","caption":"caption","whyItWorks":"why"}],"reelStoryboards":[{"title":"...","platform":"Instagram Reels","duration":"30 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"18-25"},{"title":"...","platform":"TikTok","duration":"45 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"26-45"},{"title":"...","platform":"Instagram Reels","duration":"60 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"18-25"},{"title":"...","platform":"Facebook Reels","duration":"30 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"26-45"}]}\nSERMON: ' + txt;
+    var patternGuard = ' Also re-scan for two rhetorical patterns and include a patternReels entry ONLY when genuinely present as real spoken text \u2014 never invent one. REFRAME: false belief named, explicitly corrected, replaced with a metaphor/truth, unpacked in parallel beats. PROVERB CASCADE: 2+ short mirrored one-line statements building to a personal challenge. patternType must be exactly "Reframe" or "Proverb Cascade"; text must be verbatim from the transcript covering the full moment; if neither is present, return an empty array.';
+    return 'Analyze this sermon.' + patternGuard + ' Return ONLY JSON: {"sermonExcerpts":[{"title":"...","platform":"Instagram Reels / TikTok","estimatedDuration":"1:30","wordCount":220,"text":"fresh passage","caption":"caption","whyItWorks":"why"},{"title":"...","platform":"TikTok","estimatedDuration":"1:45","wordCount":250,"text":"second passage","caption":"caption","whyItWorks":"why"}],"patternReels":[{"patternType":"Reframe or Proverb Cascade","title":"...","platform":"Instagram Reels / TikTok","estimatedDuration":"0:45","wordCount":140,"text":"verbatim passage","caption":"caption","whyItWorks":"structural beats present"}],"reelStoryboards":[{"title":"...","platform":"Instagram Reels","duration":"30 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"18-25"},{"title":"...","platform":"TikTok","duration":"45 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"26-45"},{"title":"...","platform":"Instagram Reels","duration":"60 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"18-25"},{"title":"...","platform":"Facebook Reels","duration":"30 sec","hook":"...","scenes":["S1","S2","S3","S4"],"caption":"...","targetAge":"26-45"}]}\nSERMON: ' + txt;
   },
   skits: function (txt) {
     return 'Analyze this sermon. Return ONLY JSON: {"skits":[{"title":"...","concept":"...","theme":"...","setting":"...","cast":"1-2 actors","scenes":["S1","S2","S3"],"hook":"...","targetAge":"18-25","productionTip":"..."},{"title":"...","concept":"...","theme":"...","setting":"...","cast":"2 actors","scenes":["S1","S2","S3"],"hook":"...","targetAge":"26-45","productionTip":"..."},{"title":"...","concept":"...","theme":"...","setting":"...","cast":"1-2 actors","scenes":["S1","S2","S3"],"hook":"...","targetAge":"18-25","productionTip":"..."},{"title":"...","concept":"...","theme":"...","setting":"...","cast":"2 actors","scenes":["S1","S2","S3"],"hook":"...","targetAge":"26-45","productionTip":"..."}]}\nSERMON: ' + txt;
@@ -372,7 +512,7 @@ var R = {
   },
   youtube: function (txt, meta) {
     var sp = meta && meta.speaker || "the speaker";
-    return 'Generate a fresh YouTube upload package for this sermon by ' + sp + '. Return ONLY valid JSON: {"titles":["Title 1","Title 2","Title 3"],"hook":"Hook line","descriptionBody":"Full description","chapters":[{"time":"0:00","title":"Intro"}],"tags":["tag1","tag2"],"thumbnailConcepts":["Concept 1","Concept 2","Concept 3"]}\nSERMON: ' + txt;
+    return 'Generate a fresh broadcast upload package for this sermon by ' + sp + '. Write 6 fresh title options with varied angles (curiosity, promise, question, bold statement, pain point, SEO-forward). Generate 2-3 fresh broadcastOpens — each messageHook MUST be a verbatim excerpt copied directly from the SERMON text (never paraphrased or invented; return fewer entries if the transcript lacks a strong enough excerpt), paired with a newly written transitionHook that bridges into the message topic. Return ONLY valid JSON: {"titles":["T1","T2","T3","T4","T5","T6"],"broadcastOpens":[{"messageHook":"verbatim excerpt","transitionHook":"bridge copy"},{"messageHook":"verbatim excerpt","transitionHook":"bridge copy"}],"hook":"Hook line","descriptionBody":"Full description supporting the lead title","chapters":[{"time":"0:00","title":"Intro"}],"tags":["tag1","tag2"],"thumbnailConcepts":["Concept 1","Concept 2","Concept 3"]}\nSERMON: ' + txt;
   },
   hooks: function (txt) {
     return 'Generate fresh scroll-stopping content hooks for this sermon. Return ONLY valid JSON: {"messageHooks":[{"hook":"...","type":"curiosity","platform":"..."},{"hook":"...","type":"problem","platform":"..."},{"hook":"...","type":"challenge","platform":"..."},{"hook":"...","type":"promise","platform":"..."},{"hook":"...","type":"question","platform":"..."}],"visualHooks":[{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."}],"audioHooks":[{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."}],"excerptSetups":[{"title":"...","setup":"..."}]}\nSERMON: ' + txt;
@@ -383,7 +523,6 @@ var R = {
     var p = "Write a fresh For Emerging Leaders section from this sermon by " + fullName + ".";
     p += " First-person voice as if " + sp + " speaks directly to young leaders.";
     p += " Mentor tone, 220-350 words.";
-    p += " OPENING: Do not use a fixed or formulaic opening line, and don't default to always addressing the reader as \"young leader\" in the first sentence. Pick whichever entry point this transcript actually supports: a specific, nameable story/illustration/moment the speaker used (name the real thing, never a vague gesture at an unnamed moment); the specific scripture the message centered on; the real tension or paradox the sermon wrestled with; or the probing question the sermon itself raised. Ground it in something specific and actually stated in this transcript.";
     p += " Return ONLY JSON: {\"emergingLeaders\":{\"applicable\":true,\"title\":\"...\",";
     p += "\"content\":\"...\",\"scripture\":\"...\"}}";
     p += " SERMON: " + txt;
@@ -425,14 +564,14 @@ var R = {
     p += " SERMON: " + txt;
     return p;
   },
-  carousel: function (txt, meta) {
+  carousel: function (txt, meta, coreData) {
     var t = meta && meta.title || "Sermon";
     var styleCtx = carouselStyleCtx(meta);
     var seriesTag = meta && meta.seriesName ? meta.seriesName + (meta.seriesNumber ? " \u2014 Part " + meta.seriesNumber : "") : "";
     var outwardCtx = ' The first 3 carousels can take any distinct angle for people likely already at church. The 4th MUST be written for someone who was NOT in the room \u2014 self-contained, inviting, not assuming prior context.';
     var hookCtx = ' Each of the first 3 MUST use a different hook archetype: 1 = QUESTION hook. 2 = MYTH-BUSTING/contrarian hook. 3 = STORY/MOMENT hook \u2014 MUST open with an actual, specific, nameable detail from THIS sermon (a real illustration, phrase, or moment the speaker used), NOT a generic placeholder like "There was a moment when...". If no single clear anecdote exists, anchor on a specific vivid phrase/image the speaker actually used instead \u2014 still concrete, never generic filler. The 4th keeps its own outsider-facing hook.';
     var captionCtx = ' Each also needs a real Instagram caption (1-3 sentences, not a repeat of the cover), 5-8 hashtags (no # symbol), and a suggested first comment carrying the link invite (since captions can\u2019t have clickable links).';
-    var groundingCtx = ' CRITICAL \u2014 every statement, point, and caption MUST be strictly grounded in what THIS sermon actually taught. Do not import generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries. Unless the sermon explicitly says otherwise, never imply forgiveness means someone doesn\u2019t need to reconcile or restore the relationship \u2014 the biblical view is that reconciliation should always be pursued wherever possible (Romans 12:18), even though not every relationship can be fully restored. If a nuance isn\u2019t explicitly addressed in the sermon, don\u2019t fill it in with an outside assumption \u2014 stay closer to scripture and what was actually said.';
+    var groundingCtx = ' CRITICAL \u2014 every statement, point, and caption MUST be strictly grounded in what THIS sermon actually taught. Do not import generic cultural/pop-psychology framing, especially on forgiveness, reconciliation, and boundaries. Unless the sermon explicitly says otherwise, never imply forgiveness means someone doesn\u2019t need to reconcile or restore the relationship \u2014 the biblical view is that reconciliation should always be pursued wherever possible (Romans 12:18), even though not every relationship can be fully restored. If a nuance isn\u2019t explicitly addressed in the sermon, don\u2019t fill it in with an outside assumption \u2014 stay closer to scripture and what was actually said.' + takeawaysGuardCtx(coreData);
     return 'Analyze this sermon. Create 4 fresh carousels with different angles.' + styleCtx + outwardCtx + hookCtx + captionCtx + groundingCtx + ' Return ONLY JSON: {"carousel":[{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"question","coverHeadline":"FRESH HOOK 1 \u2014 A QUESTION","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"}],"memeCaption":"Relatable meme-style line","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL] STATEMENT.","statementCta":"CTA.","bonusTitle":"Questions:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"myth","coverHeadline":"HOOK 2 \u2014 MYTH-BUSTING","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"}],"memeCaption":"Relatable meme-style line","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL].","statementCta":"CTA 2.","bonusTitle":"Reflect:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"story","coverHeadline":"HOOK 3 \u2014 A MOMENT","coverQuote":"...","slides":[{"number":1,"text":"P1"},{"number":2,"text":"P2"},{"number":3,"text":"P3"}],"memeCaption":"Relatable meme-style line","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL].","statementCta":"CTA 3.","bonusTitle":"Ask:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"},{"sermonTitle":"' + t + '","seriesTag":"' + seriesTag + '","hookType":"outsider","coverHeadline":"HOOK 4 \u2014 FOR SOMEONE WHO MISSED IT","coverQuote":"self-contained, zero prior context","slides":[{"number":1,"text":"P1 \u2014 self-contained"},{"number":2,"text":"P2 \u2014 self-contained"},{"number":3,"text":"P3 \u2014 self-contained"}],"memeCaption":"Relatable meme-style line, lands even for someone new","memeNote":"Visual/meme concept note","statementLine":"[HL]phrase[/HL] statement that invites.","statementCta":"CTA 4 \u2014 an invitation framed for someone who has never been.","bonusTitle":"Deeper:","bonusItems":["Q1?","Q2?","Q3?","Q4?","Q5?"],"ctaLine":"Watch the full message on YouTube","caption":"1-3 sentence caption, for someone new","hashtags":["tag1","tag2","tag3","tag4","tag5"],"firstComment":"First comment with the link invite"}]}\nSERMON: ' + txt;
   }
 };
@@ -882,6 +1021,14 @@ function quoteCardNameLine(speaker, qs, churchName) {
   if (qs && qs.nameDisplay === "name-church" && churchName) return speaker + ", " + churchName;
   return speaker;
 }
+// Appends the REAL video/audio link (from meta/settings, never AI-guessed)
+// to a caption, for the copy-to-clipboard button. Facebook captions do
+// support clickable links, unlike Instagram, so this is worth including.
+function captionWithLink(caption, meta, settings) {
+  var link = meta && (meta.videoLink || meta.audioLink) || (settings && settings.appUrl) || "";
+  if (!caption) return link;
+  return link ? caption + "\n\n" + link : caption;
+}
 function QuoteCard(props) {
   var quote = props.quote,
     photo = props.photo,
@@ -949,6 +1096,114 @@ function QuoteCard(props) {
       opacity: 0.9
     }
   }, "\u201C")), onDownload && React.createElement("button", {
+    onClick: onDownload,
+    style: {
+      marginTop: 6,
+      width: "100%",
+      fontSize: 12,
+      padding: "5px",
+      borderRadius: 6,
+      border: "1px solid " + GOLD + "55",
+      background: GOLD_L,
+      color: PURPLE,
+      cursor: "pointer",
+      fontWeight: 500
+    }
+  }, "\u2B07 Download PNG"));
+}
+// Structured Teaching Card — headline + 2-3 supporting points, clean
+// "notes app" layout (no icons, per Henry's direction). Reuses the same
+// background/font/align/name-display controls as QuoteCard.
+function TeachingCard(props) {
+  var card = props.card || {},
+    photo = props.photo,
+    speaker = props.speaker,
+    gold = props.gold || GOLD,
+    purple = props.purple || PURPLE,
+    onDownload = props.onDownload,
+    qs = props.quoteStyle || {},
+    churchName = props.churchName || "";
+  var usePhoto = qs.mode === "photo" && photo;
+  var fontStyle = QC_FONTS[qs.font] || QC_FONTS.bold;
+  var align = qs.align === "left" ? "left" : "center";
+  var nameLine = quoteCardNameLine(speaker, qs, churchName);
+  return React.createElement("div", null, React.createElement("div", {
+    style: {
+      position: "relative",
+      aspectRatio: "4/5",
+      borderRadius: 12,
+      overflow: "hidden",
+      background: usePhoto ? "transparent" : quoteCardBg(qs, purple),
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: usePhoto ? "flex-end" : "center"
+    }
+  }, usePhoto && React.createElement("img", {
+    src: photo,
+    alt: "",
+    style: {
+      position: "absolute",
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      objectFit: "cover"
+    }
+  }), React.createElement("div", {
+    style: {
+      position: "relative",
+      width: "100%",
+      background: usePhoto ? "linear-gradient(transparent," + purple + "F5 45%)" : "transparent",
+      padding: "1.75rem 1.25rem",
+      textAlign: align
+    }
+  }, React.createElement("p", {
+    style: Object.assign({
+      color: "#fff",
+      fontSize: 19,
+      lineHeight: 1.3,
+      margin: "0 0 16px"
+    }, fontStyle)
+  }, renderHL(card.headline, gold)), React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: 9,
+      alignItems: align === "left" ? "flex-start" : "center"
+    }
+  }, (card.points || []).map(function (pt, i) {
+    return React.createElement("div", {
+      key: i,
+      style: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 8,
+        maxWidth: "92%",
+        textAlign: "left"
+      }
+    }, React.createElement("span", {
+      style: {
+        color: gold,
+        fontSize: 13,
+        lineHeight: "1.6em",
+        flexShrink: 0
+      }
+    }, "\u2014"), React.createElement("span", {
+      style: {
+        color: "#fff",
+        fontSize: 13,
+        lineHeight: 1.5,
+        opacity: 0.92
+      }
+    }, pt));
+  })), nameLine && React.createElement("p", {
+    style: {
+      color: gold,
+      fontSize: 12,
+      margin: "16px 0 0",
+      fontWeight: 600,
+      textAlign: align
+    }
+  }, "\u2014 " + nameLine))), onDownload && React.createElement("button", {
     onClick: onDownload,
     style: {
       marginTop: 6,
@@ -2644,7 +2899,9 @@ function App() {
     quoteMarks: true,
     nameDisplay: "name",
     // "name" | "name-title" | "name-church"
-    speakerTitle: ""
+    speakerTitle: "",
+    contentType: "quote"
+    // "quote" | "teaching" — Simple Quote vs Structured Teaching layout
   }),
     quoteStyle = quoteStyleState[0],
     setQuoteStyle = quoteStyleState[1];
@@ -2719,9 +2976,6 @@ function App() {
   var errLeadersState = useState(false),
     errLeaders = errLeadersState[0],
     setErrLeaders = errLeadersState[1];
-  var loadLeaderTakeawaysState = useState(false),
-    loadLeaderTakeaways = loadLeaderTakeawaysState[0],
-    setLoadLeaderTakeaways = loadLeaderTakeawaysState[1];
   // Feature 6 — Youth Ministry content. On-demand only (no auto-fire) to
   // avoid adding a 5th concurrent call during Analyze / rate-limit risk.
   var youthDataState = useState(null),
@@ -2765,6 +3019,23 @@ function App() {
   var videoDurState = useState(""),
     videoDur = videoDurState[0],
     setVideoDur = videoDurState[1];
+  // Resource/Product Copy — Network tier feature, ships to everyone during pilot.
+  // Same on-demand pattern as Family/Youth/Children Ministry.
+  var productCopyDataState = useState(null),
+    productCopyData = productCopyDataState[0],
+    setProductCopyData = productCopyDataState[1];
+  var loadProductCopyState = useState(false),
+    loadProductCopy = loadProductCopyState[0],
+    setLoadProductCopy = loadProductCopyState[1];
+  var errProductCopyState = useState(false),
+    errProductCopy = errProductCopyState[0],
+    setErrProductCopy = errProductCopyState[1];
+  var resourceNameState = useState(""),
+    resourceName = resourceNameState[0],
+    setResourceName = resourceNameState[1];
+  var giftAmountState = useState(""),
+    giftAmount = giftAmountState[0],
+    setGiftAmount = giftAmountState[1];
   var hooksDataState = useState(null),
     hooksData = hooksDataState[0],
     setHooksData = hooksDataState[1];
@@ -2975,18 +3246,6 @@ function App() {
     } catch (e) {}
     setFrenchLoading(null);
   }
-
-  // Fires the leader-specific reframe of the shared Key Takeaways once both
-  // are available. Waits on real state rather than a fixed timer, since
-  // coreData and emergingLeadersData resolve independently and at
-  // unpredictable times relative to each other.
-  useEffect(function () {
-    if (!emergingLeadersData || !emergingLeadersData.applicable) return;
-    if ((emergingLeadersData.keyPoints || []).length) return;
-    if (!coreData || !(coreData.keyPoints || []).length) return;
-    if (loadLeaderTakeaways) return;
-    runLeaderTakeaways(coreData.keyPoints);
-  }, [emergingLeadersData, coreData]);
 
   // On-demand written content: generates when user navigates to Written tab/sub-tabs.
   // This prevents rate-limit failures from firing 5 API calls simultaneously on Analyze.
@@ -3357,39 +3616,6 @@ function App() {
     }
     setLoadLeaders(false);
   }
-  // Reframes the shared Key Takeaways (coreData.keyPoints) specifically for
-  // young leaders. Fires only once both the main Emerging Leaders message
-  // and the shared takeaways are available — see useEffect below.
-  async function runLeaderTakeaways(keyPoints, attempt) {
-    attempt = attempt || 1;
-    setLoadLeaderTakeaways(true);
-    try {
-      var raw = await callAPI(P_LEADERS_TAKEAWAYS(keyPoints, meta), 1200);
-      var p = parseJ(raw);
-      if (p && p.leaderTakeaways && p.leaderTakeaways.length) {
-        setEmergingLeadersData(function (prev) {
-          return prev ? Object.assign({}, prev, {
-            keyPoints: p.leaderTakeaways
-          }) : prev;
-        });
-      } else if (attempt < 2) {
-        setLoadLeaderTakeaways(false);
-        setTimeout(function () {
-          runLeaderTakeaways(keyPoints, 2);
-        }, 1500);
-        return;
-      }
-    } catch (e) {
-      if (attempt < 2) {
-        setLoadLeaderTakeaways(false);
-        setTimeout(function () {
-          runLeaderTakeaways(keyPoints, 2);
-        }, 1500);
-        return;
-      }
-    }
-    setLoadLeaderTakeaways(false);
-  }
   async function runYouth(txt, attempt) {
     attempt = attempt || 1;
     setLoadYouth(true);
@@ -3482,6 +3708,37 @@ function App() {
       }
     }
     setLoadFamily(false);
+  }
+  async function runProductCopy(txt, attempt) {
+    attempt = attempt || 1;
+    setLoadProductCopy(true);
+    setErrProductCopy(false);
+    try {
+      var raw = await callAPI(P_PRODUCTCOPY(txt, meta, resourceName, giftAmount), 3500);
+      var p = parseJ(raw);
+      if (p && p.productCopy) {
+        setProductCopyData(p.productCopy);
+      } else if (attempt < 2) {
+        setLoadProductCopy(false);
+        setTimeout(function () {
+          runProductCopy(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrProductCopy(true);
+      }
+    } catch (e) {
+      if (attempt < 2) {
+        setLoadProductCopy(false);
+        setTimeout(function () {
+          runProductCopy(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrProductCopy(true);
+      }
+    }
+    setLoadProductCopy(false);
   }
   function restoreSession() {
     if (!savedSession) return;
@@ -3623,6 +3880,21 @@ function App() {
       section("Sermon Excerpts");
       (contentData.sermonExcerpts || []).forEach(function (ex) {
         subsection(ex.title + "  (" + ex.estimatedDuration + "  |  " + ex.platform + ")");
+        line(ex.text || "");
+        line("");
+        line("Caption:");
+        line(ex.caption || "");
+        line("");
+        line("Why it works:  " + (ex.whyItWorks || ""));
+        line("");
+      });
+    }
+
+    // Pattern Reels (Reframe / Proverb Cascade)
+    if (contentData && (contentData.patternReels || []).length) {
+      section("Pattern Reels");
+      (contentData.patternReels || []).forEach(function (ex) {
+        subsection(ex.title + "  [" + ex.patternType + "]  (" + ex.estimatedDuration + "  |  " + ex.platform + ")");
         line(ex.text || "");
         line("");
         line("Caption:");
@@ -3788,10 +4060,10 @@ function App() {
       line(emergingLeadersData.content);
       line("");
       if (emergingLeadersData.scripture) line("Scripture:  " + emergingLeadersData.scripture);
-      if ((emergingLeadersData.keyPoints || []).length) {
+      if ((coreData.keyPoints || []).length) {
         line("");
-        line("Key Takeaways:");
-        (emergingLeadersData.keyPoints || []).forEach(function (pt) {
+        line("Core Takeaways:");
+        (coreData.keyPoints || []).forEach(function (pt) {
           bullet(pt);
         });
       }
@@ -3846,7 +4118,17 @@ function App() {
   // Feature 2 — downloads every quote card as a PNG. Staggered by 400ms each
   // so the browser doesn't treat it as a multi-download popup and block it.
   function downloadAllQuoteCards() {
-    if (!coreData || !coreData.quotes || !coreData.quotes.length) return;
+    if (!coreData) return;
+    if (quoteStyle.contentType === "teaching") {
+      if (!coreData.teachingCards || !coreData.teachingCards.length) return;
+      coreData.teachingCards.forEach(function (c, i) {
+        setTimeout(function () {
+          downloadTeachingCard(c, meta.speaker, photos[i % photos.length] || null, gold, purple, quoteStyle, settings.churchName);
+        }, i * 400);
+      });
+      return;
+    }
+    if (!coreData.quotes || !coreData.quotes.length) return;
     coreData.quotes.forEach(function (q, i) {
       setTimeout(function () {
         var qText = get("q-" + i, q.text);
@@ -3895,7 +4177,6 @@ function App() {
     });
     setEmergingLeadersData(null);
     setErrLeaders(false);
-    setLoadLeaderTakeaways(false);
     setYouthData(null);
     setErrYouth(false);
     setChildrenData(null);
@@ -3905,6 +4186,10 @@ function App() {
     setYoutubeData(null);
     setErrYT(false);
     setVideoDur("");
+    setProductCopyData(null);
+    setErrProductCopy(false);
+    setResourceName("");
+    setGiftAmount("");
     runCoreA(txt); // t = 0ms
     setTimeout(function () {
       runCoreB(txt);
@@ -3921,11 +4206,11 @@ function App() {
     setRegenLoading(type);
     try {
       var fn = R[type];
-      var prompt = fn ? fn(input, meta) : "";
+      var prompt = fn ? fn(input, meta, coreData) : "";
       var raw = await callAPI(prompt, tok || 3000);
       var p = parseJ(raw);
       if (p) {
-        if (["strategy", "quotes", "polls", "carousel"].indexOf(type) >= 0) setCoreData(function (prev) {
+        if (["strategy", "quotes", "polls", "carousel", "teachingCards"].indexOf(type) >= 0) setCoreData(function (prev) {
           return Object.assign({}, prev, p);
         });else if (type === "blogEmail") setWrittenAData(function (prev) {
           return Object.assign({}, prev, p);
@@ -5105,49 +5390,33 @@ function App() {
       margin: "0 0 12px",
       lineHeight: 1.6
     }
-  }, coreData.summary)), coreData && (coreData.keyPoints || []).length > 0 && React.createElement(Card, {
-    style: {
-      borderLeft: "4px solid " + gold
-    }
-  }, React.createElement("p", {
+  }, coreData.summary), (coreData.keyPoints || []).length > 0 && React.createElement("p", {
     style: {
       fontSize: 11,
-      fontWeight: 600,
-      color: "#999",
-      margin: "0 0 10px",
+      fontWeight: 700,
+      color: "rgba(255,255,255,0.6)",
       textTransform: "uppercase",
-      letterSpacing: "0.06em"
+      letterSpacing: "0.06em",
+      margin: "0 0 6px"
     }
-  }, "Key Takeaways"), (coreData.keyPoints || []).map(function (pt, i) {
-    return React.createElement("div", {
+  }, "Core Takeaways"), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 5,
+      flexWrap: "wrap"
+    }
+  }, (coreData.keyPoints || []).map(function (pt, i) {
+    return React.createElement("span", {
       key: i,
       style: {
-        display: "flex",
-        gap: 10,
-        marginBottom: 8
+        fontSize: 12,
+        padding: "3px 10px",
+        borderRadius: 16,
+        background: "rgba(255,255,255,0.12)",
+        color: "rgba(255,255,255,0.9)"
       }
-    }, React.createElement("div", {
-      style: {
-        width: 22,
-        height: 22,
-        borderRadius: "50%",
-        background: gold,
-        color: PURPLE_D,
-        fontSize: 11,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontWeight: 700,
-        flexShrink: 0
-      }
-    }, i + 1), React.createElement("p", {
-      style: {
-        fontSize: 14,
-        margin: 0,
-        lineHeight: 1.6
-      }
-    }, pt));
-  })), anyData && React.createElement("div", null,
+    }, pt);
+  }))), anyData && React.createElement("div", null,
   // Tabs + download
   React.createElement("div", {
     style: {
@@ -5478,10 +5747,10 @@ function App() {
       gap: 8
     }
   }, React.createElement(FrenchBtn, {
-    loading: frenchLoading === "quotes",
-    hasData: !!frenchData.quotes,
+    loading: frenchLoading === (quoteStyle.contentType === "teaching" ? "teachingCards" : "quotes"),
+    hasData: !!(quoteStyle.contentType === "teaching" ? frenchData.teachingCards : frenchData.quotes),
     onClick: function () {
-      runFrench("quotes", coreData.quotes);
+      if (quoteStyle.contentType === "teaching") runFrench("teachingCards", coreData.teachingCards);else runFrench("quotes", coreData.quotes);
     }
   }), React.createElement("button", {
     onClick: downloadAllQuoteCards,
@@ -5495,10 +5764,10 @@ function App() {
       cursor: "pointer"
     }
   }, "\u2B07\uFE0F Download all"), React.createElement(RegenBtn, {
-    type: "quotes",
+    type: quoteStyle.contentType === "teaching" ? "teachingCards" : "quotes",
     loading: regenLoading,
     onRegen: function () {
-      regen("quotes");
+      regen(quoteStyle.contentType === "teaching" ? "teachingCards" : "quotes");
     },
     disabled: !canRegen
   }))), React.createElement("div", {
@@ -5519,6 +5788,40 @@ function App() {
       letterSpacing: "0.04em"
     }
   }, "\uD83C\uDFA8 Quote card style"), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 6,
+      marginBottom: 10
+    }
+  }, [{
+    v: "quote",
+    label: "Simple Quote"
+  }, {
+    v: "teaching",
+    label: "Structured Teaching"
+  }].map(function (o) {
+    return React.createElement("button", {
+      key: o.v,
+      onClick: function () {
+        setQuoteStyle(function (q) {
+          return Object.assign({}, q, {
+            contentType: o.v
+          });
+        });
+      },
+      style: {
+        flex: 1,
+        fontSize: 12,
+        padding: "6px 10px",
+        borderRadius: 8,
+        border: "1px solid " + (quoteStyle.contentType === o.v ? purple : "#ddd"),
+        background: quoteStyle.contentType === o.v ? purple : "#fff",
+        color: quoteStyle.contentType === o.v ? "#fff" : "#555",
+        cursor: "pointer",
+        fontWeight: 600
+      }
+    }, o.label);
+  })), React.createElement("div", {
     style: {
       display: "flex",
       gap: 6,
@@ -5743,7 +6046,99 @@ function App() {
       gridTemplateColumns: "repeat(auto-fill, minmax(min(100%,200px),1fr))",
       gap: 14
     }
-  }, (coreData.quotes || []).map(function (q, i) {
+  }, quoteStyle.contentType === "teaching" ? (coreData.teachingCards || []).map(function (c, i) {
+    var headline = get("tc-h-" + i, c.headline);
+    var plainText = headline.replace(/\[HL\]|\[\/HL\]/g, "") + (c.points && c.points.length ? "\n" + c.points.map(function (p) {
+      return "\u2014 " + p;
+    }).join("\n") : "");
+    return React.createElement("div", {
+      key: i
+    }, React.createElement(TeachingCard, {
+      card: Object.assign({}, c, {
+        headline: headline
+      }),
+      photo: photos[i % photos.length] || null,
+      speaker: meta.speaker,
+      gold: gold,
+      purple: purple,
+      quoteStyle: quoteStyle,
+      churchName: settings.churchName,
+      onDownload: function () {
+        downloadTeachingCard(Object.assign({}, c, {
+          headline: headline
+        }), meta.speaker, photos[i % photos.length] || null, gold, purple, quoteStyle, settings.churchName);
+      }
+    }), React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "flex-end",
+        marginTop: 6
+      }
+    }, React.createElement(CopyBtn, {
+      text: plainText
+    })), React.createElement("div", {
+      style: {
+        marginTop: 6
+      }
+    }, React.createElement(Editable, {
+      value: headline.replace(/\[HL\]|\[\/HL\]/g, ""),
+      onChange: function (v) {
+        set("tc-h-" + i, v);
+      },
+      multiline: true,
+      style: {
+        fontSize: 12,
+        color: "#555",
+        lineHeight: 1.5,
+        fontWeight: 600
+      }
+    }), React.createElement("ul", {
+      style: {
+        margin: "6px 0 0",
+        paddingLeft: 16,
+        fontSize: 11,
+        color: "#888",
+        lineHeight: 1.5
+      }
+    }, (c.points || []).map(function (p, j) {
+      return React.createElement("li", {
+        key: j
+      }, p);
+    }))), c.caption && React.createElement("div", {
+      style: {
+        marginTop: 8,
+        paddingTop: 8,
+        borderTop: "1px solid #EEE"
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 11,
+        color: "#888",
+        fontWeight: 600,
+        margin: "0 0 3px",
+        textTransform: "uppercase",
+        letterSpacing: "0.03em"
+      }
+    }, "Caption"), React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#555",
+        lineHeight: 1.5,
+        margin: "0 0 4px"
+      }
+    }, c.caption), React.createElement(CopyBtn, {
+      text: captionWithLink(c.caption, meta, settings),
+      label: "Copy caption"
+    })), React.createElement("div", {
+      style: {
+        marginTop: 6
+      }
+    }, React.createElement(StatusBadge, {
+      itemKey: "teaching-" + i,
+      status: getStatus("teaching-" + i),
+      onUpdate: updateStatus
+    })));
+  }) : (coreData.quotes || []).map(function (q, i) {
     var qText = get("q-" + i, q.text);
     var pc = platC(q.platform);
     return React.createElement("div", {
@@ -5787,6 +6182,31 @@ function App() {
         color: "#555",
         lineHeight: 1.5
       }
+    })), q.caption && React.createElement("div", {
+      style: {
+        marginTop: 8,
+        paddingTop: 8,
+        borderTop: "1px solid #EEE"
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 11,
+        color: "#888",
+        fontWeight: 600,
+        margin: "0 0 3px",
+        textTransform: "uppercase",
+        letterSpacing: "0.03em"
+      }
+    }, "Caption"), React.createElement("p", {
+      style: {
+        fontSize: 12,
+        color: "#555",
+        lineHeight: 1.5,
+        margin: "0 0 4px"
+      }
+    }, q.caption), React.createElement(CopyBtn, {
+      text: captionWithLink(q.caption, meta, settings),
+      label: "Copy caption"
     })), React.createElement("div", {
       style: {
         marginTop: 6
@@ -5889,7 +6309,79 @@ function App() {
     }), React.createElement(CopyBtn, {
       text: "\u201C" + q.text + "\u201D"
     })));
-  })))), activeTab === "Reels" && React.createElement("div", null, err2 && React.createElement(ErrBlock, {
+  })))), frenchData.teachingCards && React.createElement("div", {
+    style: {
+      marginTop: 14
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 10
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: "#1877F2",
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: 0
+    }
+  }, "\uD83C\uDDEB\uD83C\uDDF7 Cartes d\u2019enseignement (Fran\u00e7ais)"), React.createElement("button", {
+    onClick: function () {
+      setFrenchData(function (p) {
+        var u = Object.assign({}, p);
+        delete u.teachingCards;
+        return u;
+      });
+    },
+    style: {
+      background: "none",
+      border: "none",
+      fontSize: 16,
+      cursor: "pointer",
+      color: "#999"
+    }
+  }, "\u00D7")), React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 14
+    }
+  }, (frenchData.teachingCards || []).map(function (c, i) {
+    return React.createElement(Card, {
+      key: i
+    }, React.createElement("p", {
+      style: {
+        fontSize: 13,
+        fontWeight: 700,
+        margin: "0 0 8px",
+        lineHeight: 1.4
+      }
+    }, renderHL(c.headline, gold)), React.createElement("ul", {
+      style: {
+        margin: 0,
+        paddingLeft: 16,
+        fontSize: 12,
+        color: "#555",
+        lineHeight: 1.6
+      }
+    }, (c.points || []).map(function (p, j) {
+      return React.createElement("li", {
+        key: j
+      }, p);
+    })), React.createElement("div", {
+      style: {
+        marginTop: 8
+      }
+    }, React.createElement(CopyBtn, {
+      text: (c.headline || "").replace(/\[HL\]|\[\/HL\]/g, "") + "\n" + (c.points || []).map(function (p) {
+        return "\u2014 " + p;
+      }).join("\n")
+    })));
+  }))), activeTab === "Reels" && React.createElement("div", null, err2 && React.createElement(ErrBlock, {
     label: "Reels & excerpts failed \u2014 tap to retry.",
     onRetry: function () {
       runContent(input);
@@ -5903,7 +6395,7 @@ function App() {
     },
     canRegen: canRegen && !!contentData
   }), contentData && React.createElement("div", null, React.createElement(SubTabs, {
-    tabs: ["Sermon Excerpts", "Storyboards"],
+    tabs: (contentData.patternReels || []).length ? ["Sermon Excerpts", "Pattern Reels", "Storyboards"] : ["Sermon Excerpts", "Storyboards"],
     active: reelSub,
     onChange: setReelSub
   }), reelSub === "Sermon Excerpts" && (contentData.sermonExcerpts || []).map(function (ex, i) {
@@ -6007,7 +6499,119 @@ function App() {
     }, React.createElement(CopyBtn, {
       text: get("ex-" + i + "-cap", ex.caption)
     }))));
-  }), reelSub === "Storyboards" && (contentData.reelStoryboards || []).map(function (r, i) {
+  }), reelSub === "Pattern Reels" && (contentData.patternReels || []).map(function (ex, i) {
+    var pc = platC(ex.platform);
+    return React.createElement(Card, {
+      key: i
+    }, React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginBottom: 10
+      }
+    }, React.createElement("div", null, React.createElement("p", {
+      style: {
+        fontSize: 15,
+        fontWeight: 600,
+        margin: "0 0 6px"
+      }
+    }, ex.title), React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: 6,
+        flexWrap: "wrap"
+      }
+    }, React.createElement(Pill, {
+      label: ex.patternType,
+      bg: GOLD_L,
+      color: PURPLE_D
+    }), React.createElement(Pill, {
+      label: ex.platform,
+      bg: pc.bg,
+      color: pc.color
+    }), React.createElement(Pill, {
+      label: ex.estimatedDuration,
+      bg: "#F0F0F3",
+      color: "#555"
+    }), React.createElement(Pill, {
+      label: "~" + ex.wordCount + " words",
+      bg: "#E8F5EE",
+      color: "#1A7A4A"
+    }))), React.createElement(CopyBtn, {
+      text: get("pr-" + i, ex.text)
+    })), React.createElement("div", {
+      style: {
+        background: "#FAFAFA",
+        borderRadius: 8,
+        padding: "12px 14px",
+        marginBottom: 10,
+        borderLeft: "3px solid " + gold
+      }
+    }, React.createElement(Editable, {
+      value: get("pr-" + i, ex.text),
+      onChange: function (v) {
+        set("pr-" + i, v);
+      },
+      multiline: true,
+      style: {
+        fontSize: 13,
+        lineHeight: 1.8,
+        display: "block",
+        width: "100%"
+      }
+    })), React.createElement("div", {
+      style: {
+        background: "#E8F5EE",
+        borderRadius: 8,
+        padding: "8px 12px",
+        marginBottom: 8
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 12,
+        fontWeight: 600,
+        color: "#1A7A4A",
+        margin: "0 0 2px"
+      }
+    }, "Why this works"), React.createElement("p", {
+      style: {
+        fontSize: 13,
+        margin: 0
+      }
+    }, ex.whyItWorks)), React.createElement("div", {
+      style: {
+        borderTop: "1px solid #EEE",
+        paddingTop: 10,
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start"
+      }
+    }, React.createElement(Editable, {
+      value: get("pr-" + i + "-cap", ex.caption),
+      onChange: function (v) {
+        set("pr-" + i + "-cap", v);
+      },
+      multiline: true,
+      style: {
+        fontSize: 13,
+        lineHeight: 1.6,
+        flex: 1
+      }
+    }), React.createElement("div", {
+      style: {
+        marginLeft: 8
+      }
+    }, React.createElement(CopyBtn, {
+      text: get("pr-" + i + "-cap", ex.caption)
+    }))));
+  }), reelSub === "Pattern Reels" && (contentData.patternReels || []).length === 0 && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      color: "#888",
+      padding: "20px 0",
+      textAlign: "center"
+    }
+  }, "No Reframe or Proverb Cascade moments were found in this transcript."), reelSub === "Storyboards" && (contentData.reelStoryboards || []).map(function (r, i) {
     var pc = platC(r.platform);
     return React.createElement(Card, {
       key: i
@@ -7834,7 +8438,96 @@ function App() {
     onRetry: function () {
       runYoutube(input);
     }
-  }), youtubeData && React.createElement("div", null, React.createElement(Card, {
+  }), youtubeData && React.createElement("div", null, (youtubeData.broadcastOpens || []).length > 0 && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + PURPLE_D,
+      background: "#FAFAFF",
+      marginBottom: 14
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 11,
+      fontWeight: 600,
+      color: PURPLE_D,
+      margin: "0 0 4px",
+      textTransform: "uppercase",
+      letterSpacing: "0.05em"
+    }
+  }, "Broadcast Open"), React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: "0 0 12px"
+    }
+  }, "Start here \u2014 pick the strongest opening for the rebroadcast"), (youtubeData.broadcastOpens || []).map(function (bo, i) {
+    return React.createElement("div", {
+      key: i,
+      style: {
+        borderRadius: 10,
+        border: "1px solid #E5E5F0",
+        background: "#fff",
+        padding: "12px 14px",
+        marginBottom: i < youtubeData.broadcastOpens.length - 1 ? 10 : 0
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#AAA",
+        margin: "0 0 8px",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
+      }
+    }, "Option " + (i + 1)), bo.messageHook && React.createElement("div", {
+      style: {
+        marginBottom: 10
+      }
+    }, React.createElement("p", {
+      style: {
+        fontSize: 10,
+        fontWeight: 600,
+        color: PURPLE,
+        margin: "0 0 4px",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
+      }
+    }, "Message Hook \u2014 verbatim from transcript"), React.createElement("p", {
+      style: {
+        fontSize: 14,
+        lineHeight: 1.7,
+        margin: "0 0 6px",
+        fontStyle: "italic",
+        color: "#333"
+      }
+    }, "\u201C", bo.messageHook, "\u201D"), React.createElement(CopyBtn, {
+      text: bo.messageHook
+    })), bo.transitionHook && React.createElement("div", null, React.createElement("p", {
+      style: {
+        fontSize: 10,
+        fontWeight: 600,
+        color: gold,
+        margin: "0 0 4px",
+        textTransform: "uppercase",
+        letterSpacing: "0.05em"
+      }
+    }, "Transition Hook"), React.createElement("p", {
+      style: {
+        fontSize: 14,
+        lineHeight: 1.7,
+        margin: "0 0 6px",
+        color: "#333"
+      }
+    }, bo.transitionHook), React.createElement(CopyBtn, {
+      text: bo.transitionHook
+    })), (bo.messageHook || bo.transitionHook) && React.createElement("div", {
+      style: {
+        marginTop: 8
+      }
+    }, React.createElement(CopyBtn, {
+      label: "Copy full open",
+      text: (bo.messageHook || "") + "\n\n" + (bo.transitionHook || "")
+    })));
+  })), React.createElement(Card, {
     style: {
       borderLeft: "4px solid #FF0000"
     }
@@ -8194,7 +8887,7 @@ function App() {
       margin: 0,
       whiteSpace: "pre-wrap"
     }
-  }, emergingLeadersData.content)), (emergingLeadersData.keyPoints || []).length > 0 && React.createElement(Card, {
+  }, emergingLeadersData.content)), (coreData.keyPoints || []).length > 0 && React.createElement(Card, {
     style: {
       borderLeft: "4px solid " + purple
     }
@@ -8207,7 +8900,7 @@ function App() {
       textTransform: "uppercase",
       letterSpacing: "0.06em"
     }
-  }, "Key Takeaways"), (emergingLeadersData.keyPoints || []).map(function (pt, i) {
+  }, "Core Takeaways"), (coreData.keyPoints || []).map(function (pt, i) {
     return React.createElement("div", {
       key: i,
       style: {
@@ -8961,6 +9654,215 @@ function App() {
       margin: 0
     }
   }, "For kids: " + familyData.familyPrayer.kids)))),
+  // ── Resource / Product Copy (Studio) ─────────────────────────────────────
+  // Network-tier feature; ships to everyone during the Harvest Olney pilot,
+  // tier-gate to be enforced once Supabase/auth lands (Phase 3).
+  coreData && React.createElement("div", {
+    style: {
+      marginTop: 24
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: 12,
+      flexWrap: "wrap",
+      gap: 8
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: 10
+    }
+  }, React.createElement("div", {
+    style: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      background: "linear-gradient(135deg," + purple + "," + PURPLE_D + ")",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 16
+    }
+  }, "\uD83C\uDF81"), React.createElement("div", null, React.createElement("p", {
+    style: {
+      fontSize: 14,
+      fontWeight: 700,
+      margin: 0,
+      color: PURPLE_D
+    }
+  }, "Resource / Product Copy"), React.createElement("p", {
+    style: {
+      fontSize: 11,
+      color: "#888",
+      margin: 0
+    }
+  }, "Broadcast-style offer copy for a book, study guide, or resource tied to this message"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, loadProductCopy && React.createElement(Spinner, {
+    label: "Writing offer copy\u2026"
+  }), productCopyData && React.createElement("button", {
+    onClick: function () {
+      runProductCopy(input);
+    },
+    disabled: !!(loadProductCopy || !input.trim()),
+    style: {
+      fontSize: 12,
+      padding: "5px 12px",
+      borderRadius: 8,
+      border: "1px solid " + PURPLE + "33",
+      background: "#fff",
+      color: PURPLE,
+      cursor: "pointer",
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, "\u21BB Regenerate"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap",
+      marginBottom: 12
+    }
+  }, React.createElement("input", {
+    value: resourceName,
+    onChange: function (e) {
+      setResourceName(e.target.value);
+    },
+    placeholder: "Resource name (e.g. \u201CUnfailing Love\u201D study guide)",
+    style: {
+      flex: "1 1 220px",
+      padding: "6px 10px",
+      borderRadius: 8,
+      border: "1px solid #DDD",
+      fontSize: 12
+    }
+  }), React.createElement("input", {
+    value: giftAmount,
+    onChange: function (e) {
+      setGiftAmount(e.target.value);
+    },
+    placeholder: "Suggested gift (optional, e.g. $75)",
+    style: {
+      width: 190,
+      padding: "6px 10px",
+      borderRadius: 8,
+      border: "1px solid #DDD",
+      fontSize: 12
+    }
+  }), !loadProductCopy && !productCopyData && !errProductCopy && React.createElement("button", {
+    onClick: function () {
+      runProductCopy(input);
+    },
+    disabled: !input.trim(),
+    style: {
+      fontSize: 12,
+      padding: "5px 14px",
+      borderRadius: 8,
+      border: "none",
+      background: purple,
+      color: "#fff",
+      cursor: "pointer",
+      fontWeight: 600,
+      opacity: !input.trim() ? 0.4 : 1
+    }
+  }, "Generate")), errProductCopy && React.createElement(ErrBlock, {
+    label: "Resource copy failed \u2014 tap to retry.",
+    onRetry: function () {
+      runProductCopy(input);
+    }
+  }), productCopyData && React.createElement("div", null, React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + purple,
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: purple,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Hook Question"), productCopyData.hookQuestion && React.createElement("p", {
+    style: {
+      fontSize: 14,
+      lineHeight: 1.7,
+      margin: "0 0 8px"
+    }
+  }, productCopyData.hookQuestion), productCopyData.reframe && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.7,
+      margin: "0 0 8px",
+      color: "#444"
+    }
+  }, productCopyData.reframe), productCopyData.resourceDelivers && React.createElement("p", {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.7,
+      margin: 0,
+      color: "#444",
+      fontStyle: "italic"
+    }
+  }, productCopyData.resourceDelivers), React.createElement(CopyBtn, {
+    label: "Copy hook + reframe",
+    text: [productCopyData.hookQuestion, productCopyData.reframe, productCopyData.resourceDelivers].filter(Boolean).join("\n\n")
+  })), productCopyData.callToAction && React.createElement(Card, {
+    style: {
+      borderLeft: "4px solid " + gold,
+      background: "#FFFBF0",
+      marginBottom: 12
+    }
+  }, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: PURPLE_D,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Call to Action"), React.createElement("p", {
+    style: {
+      fontSize: 14,
+      lineHeight: 1.7,
+      margin: "0 0 8px",
+      fontWeight: 600
+    }
+  }, productCopyData.callToAction), React.createElement(CopyBtn, {
+    text: productCopyData.callToAction
+  })), productCopyData.shortVersion && React.createElement(Card, null, React.createElement("p", {
+    style: {
+      fontSize: 12,
+      fontWeight: 700,
+      color: "#999",
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      margin: "0 0 8px"
+    }
+  }, "Short Version \u2014 for social or a quick broadcast moment"), React.createElement("p", {
+    style: {
+      fontSize: 13,
+      lineHeight: 1.7,
+      margin: "0 0 8px",
+      color: "#444"
+    }
+  }, productCopyData.shortVersion), React.createElement(CopyBtn, {
+    text: productCopyData.shortVersion
+  })), React.createElement(CopyBtn, {
+    label: "Copy full offer copy",
+    text: [productCopyData.hookQuestion, productCopyData.reframe, productCopyData.resourceDelivers, productCopyData.callToAction].filter(Boolean).join("\n\n")
+  }))),
   // Congregation
   side === "congregation" && React.createElement("div", null, React.createElement("div", {
     style: {
@@ -9462,7 +10364,7 @@ function App() {
       textTransform: "uppercase",
       letterSpacing: "0.05em"
     }
-  }, "Key points"), (coreData.keyPoints || []).map(function (pt, i) {
+  }, "Core Takeaways"), (coreData.keyPoints || []).map(function (pt, i) {
     return React.createElement("div", {
       key: i,
       style: {
