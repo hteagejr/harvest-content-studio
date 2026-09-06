@@ -2859,7 +2859,7 @@ function FrenchBtn(props) {
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────
-var TABS = ["Strategy", "Carousel", "Quote Cards", "Reels", "Written", "Polls", "Skits", "Hooks"];
+var TABS = ["Strategy", "Carousel", "Quote Cards", "Reels", "Written", "Polls", "Skits", "Hooks", "Ministries"];
 function App() {
   var inputState = useState(""),
     input = inputState[0],
@@ -3084,6 +3084,9 @@ function App() {
   var writtenSubState = useState("Blog Post"),
     writtenSub = writtenSubState[0],
     setWrittenSub = writtenSubState[1];
+  var ministrySubState = useState("Emerging Leaders"),
+    ministrySub = ministrySubState[0],
+    setMinistrySub = ministrySubState[1];
   var cIdxState = useState(0),
     cIdx = cIdxState[0],
     setCIdx = cIdxState[1];
@@ -4376,7 +4379,8 @@ function App() {
     Reels: !!contentData,
     Skits: !!contentData,
     Written: !!coreData,
-    Hooks: !!coreData
+    Hooks: !!coreData,
+    Ministries: !!coreData
   };
   function fmtDate(d) {
     try {
@@ -8734,8 +8738,13 @@ function App() {
       text: t
     }));
   }))))),
+  activeTab === "Ministries" && React.createElement("div", null, React.createElement(SubTabs, {
+    tabs: ["Emerging Leaders", "Youth Ministry", "Children's Ministry", "Family Ministry", "Resource / Product Copy"],
+    active: ministrySub,
+    onChange: setMinistrySub
+  }),
   // ── For Emerging Leaders (Studio) ─────────────────────────────────────
-  coreData && React.createElement("div", {
+  ministrySub === "Emerging Leaders" && coreData && React.createElement("div", {
     style: {
       marginTop: 24
     }
@@ -8931,7 +8940,7 @@ function App() {
     }, pt));
   })))),
   // ── Youth Ministry (Studio) — Feature 6 ────────────────────────────────
-  coreData && React.createElement("div", {
+  ministrySub === "Youth Ministry" && coreData && React.createElement("div", {
     style: {
       marginTop: 24
     }
@@ -9190,7 +9199,7 @@ function App() {
     }
   }, youthData.parentBrief))))),
   // ── Children's Ministry (Studio) — Feature 5 ───────────────────────────
-  coreData && React.createElement("div", {
+  ministrySub === "Children's Ministry" && coreData && React.createElement("div", {
     style: {
       marginTop: 24
     }
@@ -9430,7 +9439,7 @@ function App() {
     }, "\u2022 " + p);
   })))),
   // ── Family Ministry (Studio) ────────────────────────────────────────────
-  coreData && React.createElement("div", {
+  ministrySub === "Family Ministry" && coreData && React.createElement("div", {
     style: {
       marginTop: 24
     }
@@ -9657,7 +9666,7 @@ function App() {
   // ── Resource / Product Copy (Studio) ─────────────────────────────────────
   // Network-tier feature; ships to everyone during the Harvest Olney pilot,
   // tier-gate to be enforced once Supabase/auth lands (Phase 3).
-  coreData && React.createElement("div", {
+  ministrySub === "Resource / Product Copy" && coreData && React.createElement("div", {
     style: {
       marginTop: 24
     }
@@ -9862,7 +9871,7 @@ function App() {
   })), React.createElement(CopyBtn, {
     label: "Copy full offer copy",
     text: [productCopyData.hookQuestion, productCopyData.reframe, productCopyData.resourceDelivers, productCopyData.callToAction].filter(Boolean).join("\n\n")
-  }))),
+  })))),
   // Congregation
   side === "congregation" && React.createElement("div", null, React.createElement("div", {
     style: {
