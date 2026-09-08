@@ -3254,6 +3254,7 @@ function App() {
   // This prevents rate-limit failures from firing 5 API calls simultaneously on Analyze.
   useEffect(function () {
     if (activeTab === "Hooks" && input.trim() && coreData && !hooksData && !loadHooks && !errHooks) runHooks(input);
+    if ((activeTab === "Reels" || activeTab === "Skits") && input.trim() && coreData && !contentData && !load2 && !err2) runContent(input);
     if (activeTab !== "Written" || !input.trim() || !coreData) return;
     var needsA = ["Blog Post", "Email"].indexOf(writtenSub) >= 0;
     var needsB = ["Devotional", "Small Group", "Prayer Points"].indexOf(writtenSub) >= 0;
@@ -4173,8 +4174,11 @@ function App() {
     setFrenchData({});
     setFrenchLoading(null);
 
-    // Written content generates on-demand. Emerging Leaders auto-fires at 2000ms
-    // so it doesn't compete with the 3 primary calls.
+    // Only Core A (theme/strategy/quotes/polls) and Core B (carousels) auto-fire.
+    // Reels/Skits (Content) generate on-demand when that tab is visited;
+    // Emerging Leaders generates on-demand via its own Generate button
+    // in the Ministries tab. This keeps only 2 calls firing at once
+    // instead of 4, so demand isn't all placed at the same time.
     setAnalyzeCount(function (c) {
       return c + 1;
     });
@@ -4197,12 +4201,6 @@ function App() {
     setTimeout(function () {
       runCoreB(txt);
     }, 1500); // t = 1500ms
-    setTimeout(function () {
-      runContent(txt);
-    }, 3000); // t = 3000ms
-    setTimeout(function () {
-      runLeaders(txt);
-    }, 2000); // t = 2000ms
   }
   async function regen(type, tok) {
     if (!input.trim()) return;
