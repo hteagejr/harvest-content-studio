@@ -4368,14 +4368,14 @@ function App() {
     });
   }
   var anyData = !!(coreData || contentData || writtenAData || writtenBData);
-  // Written tab unlocks as soon as coreData is ready — content generates on-demand per sub-tab.
+  // Written, Hooks, Reels, and Skits all unlock as soon as coreData is ready — their content generates on-demand.
   var tabReady = {
     Strategy: !!coreData,
     Carousel: !!(coreData && coreData.carousel && coreData.carousel.length),
     "Quote Cards": !!coreData,
     Polls: !!coreData,
-    Reels: !!contentData,
-    Skits: !!contentData,
+    Reels: !!coreData,
+    Skits: !!coreData,
     Written: !!coreData,
     Hooks: !!coreData,
     Ministries: !!coreData
