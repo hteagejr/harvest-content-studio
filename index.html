@@ -480,6 +480,19 @@ function P_HOOKS(txt, meta) {
   var sp = (meta && meta.speaker) ? meta.speaker : 'the speaker';
   return 'You are a church social media strategist. Study this sermon by ' + sp + ' and generate scroll-stopping hooks for social media. Each hook must be specific to THIS sermon — no generic placeholders. Return ONLY this exact JSON structure with all values replaced by real sermon-specific content:\n{"messageHooks":[{"hook":"write a curiosity hook from this sermon","type":"curiosity","platform":"TikTok / Instagram Reels"},{"hook":"write a problem hook from this sermon","type":"problem","platform":"Facebook / Instagram"},{"hook":"write a challenge hook from this sermon","type":"challenge","platform":"TikTok"},{"hook":"write a promise hook from this sermon","type":"promise","platform":"Instagram / Facebook"},{"hook":"write a question hook from this sermon","type":"question","platform":"All platforms"}],"visualHooks":[{"concept":"visual idea 1","howTo":"production note 1"},{"concept":"visual idea 2","howTo":"production note 2"},{"concept":"visual idea 3","howTo":"production note 3"},{"concept":"visual idea 4","howTo":"production note 4"},{"concept":"visual idea 5","howTo":"production note 5"}],"audioHooks":[{"concept":"audio idea 1","howTo":"production note 1"},{"concept":"audio idea 2","howTo":"production note 2"},{"concept":"audio idea 3","howTo":"production note 3"},{"concept":"audio idea 4","howTo":"production note 4"},{"concept":"audio idea 5","howTo":"production note 5"}],"excerptSetups":[{"title":"clip title","setup":"1-2 sentence caption explaining why someone should watch this clip"}]}\nSERMON: ' + txt;
 }
+function P_PROMOTE(txt, meta) {
+  var sp = (meta && meta.speaker) ? meta.speaker : 'the speaker';
+  var theme = meta && meta.title ? ' The message is titled "' + meta.title + '."' : '';
+  var p = 'You are a creative marketing strategist for a church media team, working on promotion for this sermon by ' + sp + '.' + theme;
+  p += ' Your job is to find the actual creative angle THIS sermon offers — not a generic template. Study the topic and find a cultural parallel, a relatable everyday behavior, a common misconception, or a tension people already feel that connects to what this message is about. Ground every idea in the specific content of the sermon below, not in sermon topics in general.';
+  p += ' PROMOTIONAL STRATEGY: identify 2-3 distinct creative angles for promoting this specific message. Each angle should be genuinely different from the others in approach (e.g., a cultural/pop-culture parallel, a relatable behavior people recognize in themselves, a myth or misconception being corrected, a tension or fear people already carry). For each, explain in one sentence why this angle will make someone stop scrolling.';
+  p += ' PLATFORM PLAN: for Facebook, YouTube, LinkedIn, and Instagram/TikTok, recommend the content format best suited to that platform for THIS topic (not generic "post consistently" advice), and a one-sentence rationale tied to how that platform\'s audience actually behaves.';
+  p += ' TEASER CONCEPTS: write 2-3 teaser concepts to promote this message or series. Each needs a format that fits the topic (this could be a skit, a text-message exchange, a street-interview style clip, a poll, a "have you ever" moment, or something else — pick whatever format actually fits this sermon\'s content, do not default to the same format every time). Write a FULL mini-script for each — real dialogue or scene direction a producer could shoot from directly, not just a one-line idea. Keep each script tight enough for a 15-45 second video.';
+  p += ' BUMPER CONCEPTS: write 1-2 short sermon bumper concepts (5-10 second pre-roll ideas) that connect to this week\'s theme or series — these are brief, not full scenes.';
+  p += ' Return ONLY valid JSON: {"promotionalStrategy":[{"angle":"name/description of the angle","whyItWorks":"one sentence on why this stops the scroll"},{"angle":"...","whyItWorks":"..."}],"platformPlan":[{"platform":"Facebook","format":"recommended format for this topic","rationale":"one sentence tied to this platform and this topic"},{"platform":"YouTube","format":"...","rationale":"..."},{"platform":"LinkedIn","format":"...","rationale":"..."},{"platform":"Instagram/TikTok","format":"...","rationale":"..."}],"teaserConcepts":[{"title":"concept name","format":"skit / text-exchange / street-interview / poll / other — name it","platform":"best-fit platform","script":"full mini-script with dialogue or scene direction, ready to shoot"},{"title":"...","format":"...","platform":"...","script":"..."}],"bumperConcepts":[{"title":"...","script":"short 5-10 second pre-roll concept"}]}';
+  p += ' SERMON: ' + txt;
+  return p;
+}
 var R = {
   strategy: function (txt) {
     return 'Analyze this sermon. Return ONLY JSON: {"strategy":{"recommendation":"fresh 2-3 sentence recommendation","weeklyPlan":[{"day":"Sunday","content":"...","platform":"YouTube / Facebook Live"},{"day":"Monday","content":"...","platform":"Instagram / Website"},{"day":"Tuesday","content":"...","platform":"TikTok / Reels"},{"day":"Wednesday","content":"...","platform":"Email / WhatsApp"},{"day":"Thursday","content":"...","platform":"TikTok / YouTube Shorts"},{"day":"Friday","content":"...","platform":"Instagram / Facebook"},{"day":"Saturday","content":"...","platform":"Facebook / Instagram Stories"}]}}\nSERMON: ' + txt;
@@ -516,6 +529,9 @@ var R = {
   },
   hooks: function (txt) {
     return 'Generate fresh scroll-stopping content hooks for this sermon. Return ONLY valid JSON: {"messageHooks":[{"hook":"...","type":"curiosity","platform":"..."},{"hook":"...","type":"problem","platform":"..."},{"hook":"...","type":"challenge","platform":"..."},{"hook":"...","type":"promise","platform":"..."},{"hook":"...","type":"question","platform":"..."}],"visualHooks":[{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."}],"audioHooks":[{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."},{"concept":"...","howTo":"..."}],"excerptSetups":[{"title":"...","setup":"..."}]}\nSERMON: ' + txt;
+  },
+  promote: function (txt) {
+    return 'Generate a fresh promotional strategy for this sermon — 2-3 distinct creative angles genuinely grounded in this specific message (not a generic template), a platform plan for Facebook/YouTube/LinkedIn/Instagram-TikTok, 2-3 teaser concepts with full mini-scripts (pick whatever format fits the topic — skit, text-exchange, street-interview, poll, or other), and 1-2 short bumper concepts. Return ONLY valid JSON: {"promotionalStrategy":[{"angle":"...","whyItWorks":"..."},{"angle":"...","whyItWorks":"..."}],"platformPlan":[{"platform":"Facebook","format":"...","rationale":"..."},{"platform":"YouTube","format":"...","rationale":"..."},{"platform":"LinkedIn","format":"...","rationale":"..."},{"platform":"Instagram/TikTok","format":"...","rationale":"..."}],"teaserConcepts":[{"title":"...","format":"...","platform":"...","script":"..."},{"title":"...","format":"...","platform":"...","script":"..."}],"bumperConcepts":[{"title":"...","script":"..."}]}\nSERMON: ' + txt;
   },
   leaders: function (txt, meta) {
     var sp = getAddressName(meta.speaker) || "the speaker";
@@ -2859,7 +2875,7 @@ function FrenchBtn(props) {
 }
 
 // ── Main App ──────────────────────────────────────────────────────────────
-var TABS = ["Strategy", "Carousel", "Quote Cards", "Reels", "Written", "Polls", "Skits", "Hooks", "Ministries"];
+var TABS = ["Strategy", "Carousel", "Quote Cards", "Reels", "Written", "Polls", "Skits", "Hooks", "Promote", "Ministries"];
 function App() {
   var inputState = useState(""),
     input = inputState[0],
@@ -3045,6 +3061,15 @@ function App() {
   var errHooksState = useState(false),
     errHooks = errHooksState[0],
     setErrHooks = errHooksState[1];
+  var promoteDataState = useState(null),
+    promoteData = promoteDataState[0],
+    setPromoteData = promoteDataState[1];
+  var loadPromoteState = useState(false),
+    loadPromote = loadPromoteState[0],
+    setLoadPromote = loadPromoteState[1];
+  var errPromoteState = useState(false),
+    errPromote = errPromoteState[0],
+    setErrPromote = errPromoteState[1];
   // Transcript cleanup
   var cleanedTranscriptState = useState(null),
     cleanedTranscript = cleanedTranscriptState[0],
@@ -3254,6 +3279,7 @@ function App() {
   // This prevents rate-limit failures from firing 5 API calls simultaneously on Analyze.
   useEffect(function () {
     if (activeTab === "Hooks" && input.trim() && coreData && !hooksData && !loadHooks && !errHooks) runHooks(input);
+    if (activeTab === "Promote" && input.trim() && coreData && !promoteData && !loadPromote && !errPromote) runPromote(input);
     if ((activeTab === "Reels" || activeTab === "Skits") && input.trim() && coreData && !contentData && !load2 && !err2) runContent(input);
     if (activeTab !== "Written" || !input.trim() || !coreData) return;
     var needsA = ["Blog Post", "Email"].indexOf(writtenSub) >= 0;
@@ -3588,6 +3614,37 @@ function App() {
       }
     }
     setLoadHooks(false);
+  }
+  async function runPromote(txt, attempt) {
+    attempt = attempt || 1;
+    setLoadPromote(true);
+    setErrPromote(false);
+    try {
+      var raw = await callAPI(P_PROMOTE(txt, meta), 6000);
+      var p = parseJ(raw);
+      if (p && (p.promotionalStrategy || p.platformPlan || p.teaserConcepts)) {
+        setPromoteData(p);
+      } else if (attempt < 2) {
+        setLoadPromote(false);
+        setTimeout(function () {
+          runPromote(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrPromote(true);
+      }
+    } catch (e) {
+      if (attempt < 2) {
+        setLoadPromote(false);
+        setTimeout(function () {
+          runPromote(txt, 2);
+        }, 1500);
+        return;
+      } else {
+        setErrPromote(true);
+      }
+    }
+    setLoadPromote(false);
   }
   async function runLeaders(txt, attempt) {
     attempt = attempt || 1;
@@ -4190,6 +4247,8 @@ function App() {
     setErrChildren(false);
     setHooksData(null);
     setErrHooks(false);
+    setPromoteData(null);
+    setErrPromote(false);
     setYoutubeData(null);
     setErrYT(false);
     setVideoDur("");
@@ -4217,7 +4276,7 @@ function App() {
           return Object.assign({}, prev, p);
         });else if (type === "devotionalGuide") setWrittenBData(function (prev) {
           return Object.assign({}, prev, p);
-        });else if (type === "leaders") setEmergingLeadersData(p.emergingLeaders || null);else if (type === "youth") setYouthData(p.youthMinistry || null);else if (type === "children") setChildrenData(p.childrenMinistry || null);else if (type === "family") setFamilyData(p.familyMinistry || null);else if (type === "hooks") setHooksData(p);else if (type === "youtube") setYoutubeData(p);else setContentData(function (prev) {
+        });else if (type === "leaders") setEmergingLeadersData(p.emergingLeaders || null);else if (type === "youth") setYouthData(p.youthMinistry || null);else if (type === "children") setChildrenData(p.childrenMinistry || null);else if (type === "family") setFamilyData(p.familyMinistry || null);else if (type === "hooks") setHooksData(p);else if (type === "youtube") setYoutubeData(p);else if (type === "promote") setPromoteData(p);else setContentData(function (prev) {
           return Object.assign({}, prev, p);
         });
         setEdits({});
@@ -4378,6 +4437,7 @@ function App() {
     Skits: !!coreData,
     Written: !!coreData,
     Hooks: !!coreData,
+    Promote: !!coreData,
     Ministries: !!coreData
   };
   function fmtDate(d) {
@@ -8736,6 +8796,76 @@ function App() {
       text: t
     }));
   }))))),
+  activeTab === "Promote" && React.createElement("div", null, errPromote && React.createElement(ErrBlock, {
+    label: "Promotional strategy generation failed \u2014 tap to retry.",
+    onRetry: function () {
+      runPromote(input);
+    }
+  }), !promoteData && !loadPromote && !errPromote && React.createElement("div", {
+    style: { textAlign: "center", padding: "20px 0" }
+  },
+    React.createElement("p", { style: { fontSize: 13, color: "#999", marginBottom: 12 } }, "Building a promotional strategy\u2026"),
+    React.createElement("button", {
+      onClick: function() { runPromote(input); },
+      style: { fontSize: 12, padding: "6px 16px", borderRadius: 8, border: "1px solid " + gold, background: "#fff", color: purple, cursor: "pointer" }
+    }, "\u21BA If nothing loads, tap to generate")
+  ), loadPromote && React.createElement(Spinner, {
+    label: "Building promotional strategy & teaser concepts\u2026"
+  }), promoteData && React.createElement("div", null,
+    React.createElement("div", {
+      style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }
+    },
+      React.createElement("div", null,
+        React.createElement("p", { style: { fontSize: 16, fontWeight: 700, color: PURPLE_D, margin: "0 0 2px" } }, "\uD83D\uDCE3 Promote This Message"),
+        React.createElement("p", { style: { fontSize: 12, color: "#888", margin: 0 } }, "Strategic promotion, platform plan & teaser concepts")
+      ),
+      React.createElement(RegenBtn, {
+        type: "promote",
+        loading: regenLoading,
+        onRegen: function () { regen("promote", 6000); },
+        disabled: !canRegen
+      })
+    ),
+    React.createElement("div", {
+      style: { background: GOLD_L, border: "1px solid " + gold, borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 12, color: PURPLE_D, fontWeight: 600 }
+    }, "\u26A0\uFE0F Review before producing or publishing \u2014 these are concepts for the team to shape, not final scripts."),
+    React.createElement(Sec, { title: "Promotional strategy" }, (promoteData.promotionalStrategy || []).map(function (a, i) {
+      return React.createElement(Card, { key: i },
+        React.createElement("p", { style: { fontSize: 14, fontWeight: 700, color: PURPLE_D, margin: "0 0 6px" } }, a.angle),
+        React.createElement("p", { style: { fontSize: 13, color: "#666", margin: "0 0 8px", lineHeight: 1.5 } }, a.whyItWorks),
+        React.createElement(CopyBtn, { text: (a.angle || "") + "\n" + (a.whyItWorks || "") })
+      );
+    })),
+    React.createElement(Sec, { title: "Platform plan" }, (promoteData.platformPlan || []).map(function (pl, i) {
+      return React.createElement(Card, { key: i, style: { display: "flex", gap: 12, alignItems: "flex-start" } },
+        React.createElement("div", { style: { minWidth: 96, fontSize: 12, fontWeight: 700, color: purple, paddingTop: 2 } }, pl.platform),
+        React.createElement("div", { style: { flex: 1 } },
+          React.createElement("p", { style: { fontSize: 14, fontWeight: 600, margin: "0 0 4px" } }, pl.format),
+          React.createElement("p", { style: { fontSize: 12, color: "#888", margin: 0, lineHeight: 1.5 } }, pl.rationale)
+        )
+      );
+    })),
+    React.createElement(Sec, { title: "Teaser concepts" }, (promoteData.teaserConcepts || []).map(function (t, i) {
+      return React.createElement(Card, { key: i },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 8, flexWrap: "wrap" } },
+          React.createElement("p", { style: { fontSize: 14, fontWeight: 700, color: PURPLE_D, margin: 0 } }, t.title),
+          React.createElement("div", { style: { display: "flex", gap: 6 } },
+            React.createElement("span", { style: { fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10, background: PURPLE_L, color: purple } }, t.format),
+            React.createElement("span", { style: { fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 10, background: GOLD_L, color: PURPLE_D } }, t.platform)
+          )
+        ),
+        React.createElement("p", { style: { fontSize: 13, color: "#444", margin: "0 0 8px", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, t.script),
+        React.createElement(CopyBtn, { text: t.script })
+      );
+    })),
+    React.createElement(Sec, { title: "Bumper concepts" }, (promoteData.bumperConcepts || []).map(function (b, i) {
+      return React.createElement(Card, { key: i },
+        React.createElement("p", { style: { fontSize: 14, fontWeight: 700, color: PURPLE_D, margin: "0 0 6px" } }, b.title),
+        React.createElement("p", { style: { fontSize: 13, color: "#444", margin: "0 0 8px", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, b.script),
+        React.createElement(CopyBtn, { text: b.script })
+      );
+    }))
+  )),
   activeTab === "Ministries" && React.createElement("div", null, React.createElement(SubTabs, {
     tabs: ["Emerging Leaders", "Youth Ministry", "Children's Ministry", "Family Ministry", "Resource / Product Copy"],
     active: ministrySub,
